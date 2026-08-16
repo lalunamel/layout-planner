@@ -35,6 +35,30 @@ export function boundingBox(points: Point[]): { width: number; height: number } 
   };
 }
 
+export function templateCenter(points: Point[]): Point {
+  const xs = points.map((p) => p.x);
+  const ys = points.map((p) => p.y);
+  return {
+    x: (Math.min(...xs) + Math.max(...xs)) / 2,
+    y: (Math.min(...ys) + Math.max(...ys)) / 2,
+  };
+}
+
+export function pointsEqual(a: Point, b: Point): boolean {
+  return a.x === b.x && a.y === b.y;
+}
+
+export function uniqueVertices(walls: { a: Point; b: Point }[]): Point[] {
+  const seen = new Map<string, Point>();
+  for (const w of walls) {
+    for (const p of [w.a, w.b]) {
+      const key = `${p.x},${p.y}`;
+      if (!seen.has(key)) seen.set(key, p);
+    }
+  }
+  return [...seen.values()];
+}
+
 export function polygonPath(points: Point[]): string {
   if (points.length === 0) return '';
   const [first, ...rest] = points;
