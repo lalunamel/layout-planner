@@ -1,0 +1,42 @@
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.toolbar {
+  height: 56px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--paper-grid-major);
+}
+
+.toolbar button {
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid var(--paper-grid-major);
+  background: var(--paper);
+  cursor: pointer;
+}
+
+.toolbar button.active {
+  background: var(--blue-100);
+  border-color: var(--blue-200);
+  color: var(--blue-600);
+}
+
+.planName {
+  margin-left: auto;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}

@@ -1,0 +1,15 @@
+.wrap {
+  flex: 1;
+  position: relative;
+  min-width: 0;
+  background: var(--paper);
+  overflow: hidden;
+}
+
+.svg {
+  cursor: default;
+}
+
+.svgWallTool {
+  cursor: crosshair;
+}
