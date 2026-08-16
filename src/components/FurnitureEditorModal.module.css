@@ -1,0 +1,137 @@
+.scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 30, 50, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.panel {
+  width: 640px;
+  max-width: 94vw;
+  height: 520px;
+  max-height: 88vh;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: var(--shadow-hover);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.top {
+  height: 54px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--paper-grid-major);
+}
+
+.nameInput {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 600;
+  border: 1px solid var(--paper-grid-major);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: var(--blue-50);
+}
+
+.nameInput:focus {
+  outline: none;
+  border-color: var(--blue-500);
+  background: #fff;
+}
+
+.body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+.tools {
+  width: 48px;
+  flex: none;
+  border-right: 1px solid var(--paper-grid-major);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 10px;
+}
+
+.toolBtn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--blue-200);
+  background: var(--blue-100);
+  color: var(--blue-600);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.canvasWrap {
+  flex: 1;
+  position: relative;
+}
+
+.hint {
+  position: absolute;
+  bottom: 10px;
+  left: 12px;
+  font-size: 11.5px;
+  color: var(--ink-soft);
+  pointer-events: none;
+}
+
+.bottom {
+  height: 58px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 0 16px;
+  border-top: 1px solid var(--paper-grid-major);
+}
+
+.btnPrimary {
+  background: var(--blue-500);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 9px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btnPrimary:hover {
+  background: var(--blue-600);
+}
+
+.btnPrimary:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.btnGhost {
+  background: none;
+  border: 1px solid var(--paper-grid-major);
+  color: var(--ink-soft);
+  border-radius: 8px;
+  padding: 9px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btnGhost:hover {
+  background: var(--blue-50);
+  color: var(--ink);
+}

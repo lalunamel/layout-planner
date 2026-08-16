@@ -198,6 +198,27 @@ export function Canvas({ tool, state, dispatch, library }: CanvasProps) {
     }
   }
 
+  // ---------- drag furniture in from the library panel ----------
+  function handleSvgDragOver(e: React.DragEvent<SVGSVGElement>) {
+    if (e.dataTransfer.types.includes('application/x-furniture-template')) {
+      e.preventDefault();
+    }
+  }
+
+  function handleSvgDrop(e: React.DragEvent<SVGSVGElement>) {
+    const templateId = e.dataTransfer.getData('application/x-furniture-template');
+    if (!templateId) return;
+    e.preventDefault();
+    const template = library.find((t) => t.id === templateId);
+    if (!template) return;
+    const world = toWorld(e.clientX, e.clientY);
+    const center = templateCenter(template.points);
+    const snapped = snapPoint({ x: world.x - center.x, y: world.y - center.y }, snapResolution());
+    const inst = { id: makeId('placed'), templateId: template.id, x: snapped.x, y: snapped.y, rotation: 0 };
+    dispatch({ type: 'ADD_FURNITURE', item: inst });
+    setSelectedFurnitureId(inst.id);
+  }
+
   // ---------- select tool: drag furniture ----------
   function handleFurnitureMouseDown(e: React.MouseEvent, instId: string, instX: number, instY: number) {
     if (tool !== 'select') return;
@@ -313,6 +334,8 @@ export function Canvas({ tool, state, dispatch, library }: CanvasProps) {
           onClick={handleSvgClick}
           onDoubleClick={handleSvgDoubleClick}
           onMouseDown={handleSvgMouseDown}
+          onDragOver={handleSvgDragOver}
+          onDrop={handleSvgDrop}
         >
           <defs>
             <pattern id="gridMinor" width={MINOR_GRID_FT} height={MINOR_GRID_FT} patternUnits="userSpaceOnUse">
