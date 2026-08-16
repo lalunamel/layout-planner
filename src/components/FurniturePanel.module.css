@@ -9,14 +9,19 @@
 
 .header {
   padding: 14px 14px 10px;
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  justify-content: space-between;
   user-select: none;
+}
+
+.headerSpacer {
+  width: 26px;
 }
 
 .header h3 {
   margin: 0;
+  text-align: center;
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -30,12 +35,12 @@
   border: none;
   background: var(--blue-500);
   color: #fff;
-  font-size: 16px;
-  line-height: 1;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
+  justify-self: end;
+  padding: 0;
 }
 
 .newButton:hover {
@@ -59,26 +64,28 @@
 }
 
 .card {
-  background: #fff;
-  border: 1px solid var(--blue-200);
+  background: transparent;
+  border: 1px solid transparent;
   border-radius: 14px;
   padding: 10px;
   cursor: grab;
   position: relative;
   transition:
     transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1),
-    box-shadow 0.18s ease;
-  box-shadow: var(--shadow);
+    box-shadow 0.18s ease,
+    background 0.18s ease,
+    border-color 0.18s ease;
 }
 
 .card:hover {
-  transform: translateY(-3px);
+  background: #fff;
+  border-color: var(--blue-200);
   box-shadow: var(--shadow-hover);
+  transform: translateY(-3px);
 }
 
 .card:active {
   cursor: grabbing;
-  transform: translateY(-1px) scale(0.98);
 }
 
 .swatch {
@@ -93,26 +100,22 @@
   margin-bottom: 8px;
 }
 
-.row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
 .name {
   font-size: 13px;
   font-weight: 600;
   color: var(--ink);
 }
 
-.dims {
-  font-size: 11px;
-  color: var(--ink-soft);
-  margin-top: 1px;
+.kebabWrap {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
 }
 
-.kebabWrap {
-  position: relative;
+.card:hover .kebabWrap {
+  opacity: 1;
 }
 
 .kebab {
@@ -120,13 +123,14 @@
   height: 22px;
   border-radius: 6px;
   border: none;
-  background: transparent;
+  background: #fff;
   color: var(--ink-soft);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 14px;
+  box-shadow: var(--shadow);
 }
 
 .kebab:hover {

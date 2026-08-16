@@ -87,13 +87,6 @@ export function FurnitureEditorModal({ editing, onSave, onCancel }: FurnitureEdi
           />
         </div>
         <div className={styles.body}>
-          <div className={styles.tools}>
-            <div className={styles.toolBtn} title="Draw shape">
-              <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                <path d="M3 21 21 3M14 3h7v7" />
-              </svg>
-            </div>
-          </div>
           <div className={styles.canvasWrap} ref={wrapRef}>
             {size.width > 0 && (
             <svg
@@ -147,9 +140,6 @@ export function FurnitureEditorModal({ editing, onSave, onCancel }: FurnitureEdi
               )}
             </svg>
             )}
-            <div className={styles.hint}>
-              {points.length >= 3 ? 'Click to redraw' : 'Click to place corners · click near the start to close'}
-            </div>
           </div>
         </div>
         <div className={styles.bottom}>

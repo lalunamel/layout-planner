@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import type { FurnitureTemplate, Point, Tool, Wall } from '../model/types';
+import type { FurnitureTemplate, Point, Wall } from '../model/types';
 import type { PlanAction, PlanState } from '../store/planReducer';
 import {
   MAJOR_GRID_FT,
   MINOR_GRID_FT,
   distance,
+  formatFeetInches,
   makeId,
   pointsEqual,
   polygonPath,
@@ -17,7 +18,6 @@ import { clampScale, DEFAULT_SCALE, MINOR_GRID_VISIBLE_SCALE, type View } from '
 import styles from './Canvas.module.css';
 
 interface CanvasProps {
-  tool: Tool;
   state: PlanState;
   dispatch: (action: PlanAction) => void;
   library: FurnitureTemplate[];
@@ -32,11 +32,14 @@ type DragCtx =
 const VERTEX_HIT_PX = 9;
 const WALL_HIT_PX = 10;
 
-export function Canvas({ tool, state, dispatch, library }: CanvasProps) {
+export function Canvas({ state, dispatch, library }: CanvasProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const bgRef = useRef<SVGRectElement | null>(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [view, setView] = useState<View>({ x: -2, y: -2, scale: DEFAULT_SCALE });
   const [drawingPoints, setDrawingPoints] = useState<Point[] | null>(null);
+  const [hoverPoint, setHoverPoint] = useState<Point | null>(null);
+  const [hoveredWallId, setHoveredWallId] = useState<string | null>(null);
   const panRef = useRef<{ x0: number; y0: number; startX: number; startY: number } | null>(null);
 
   const [selectedFurnitureId, setSelectedFurnitureId] = useState<string | null>(null);
@@ -105,12 +108,6 @@ export function Canvas({ tool, state, dispatch, library }: CanvasProps) {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [selectedFurnitureId, selectedWallId, dispatch]);
 
-  useEffect(() => {
-    setDrawingPoints(null);
-    setSelectedFurnitureId(null);
-    setSelectedWallId(null);
-  }, [tool]);
-
   function snapResolution(): number {
     return view.scale >= MINOR_GRID_VISIBLE_SCALE ? MINOR_GRID_FT : MAJOR_GRID_FT;
   }
@@ -121,6 +118,10 @@ export function Canvas({ tool, state, dispatch, library }: CanvasProps) {
       x: view.x + (clientX - rect.left) / view.scale,
       y: view.y + (clientY - rect.top) / view.scale,
     };
+  }
+
+  function isBackgroundTarget(e: React.SyntheticEvent): boolean {
+    return e.target === e.currentTarget || e.target === bgRef.current;
   }
 
   function segmentsFromPoints(points: Point[], close: boolean): Wall[] {
@@ -134,9 +135,18 @@ export function Canvas({ tool, state, dispatch, library }: CanvasProps) {
     return walls;
   }
 
-  // ---------- wall drawing (tool === 'wall') ----------
+  // ---------- wall drawing ----------
+  function handleSvgMouseMove(e: React.MouseEvent<SVGSVGElement>) {
+    const raw = toWorld(e.clientX, e.clientY);
+    setHoverPoint(snapPoint(raw, snapResolution()));
+  }
+
+  function handleSvgMouseLeave() {
+    setHoverPoint(null);
+  }
+
   function handleSvgClick(e: React.MouseEvent<SVGSVGElement>) {
-    if (tool !== 'wall') return;
+    if (!isBackgroundTarget(e)) return;
     const raw = toWorld(e.clientX, e.clientY);
     const pt = snapPoint(raw, snapResolution());
 
@@ -155,7 +165,7 @@ export function Canvas({ tool, state, dispatch, library }: CanvasProps) {
   }
 
   function handleSvgDoubleClick() {
-    if (tool !== 'wall' || !drawingPoints) return;
+    if (!drawingPoints) return;
     let points = drawingPoints;
     if (points.length >= 2) {
       const last = points[points.length - 1];
@@ -168,7 +178,7 @@ export function Canvas({ tool, state, dispatch, library }: CanvasProps) {
     setDrawingPoints(null);
   }
 
-  // ---------- panning (middle-mouse drag, any tool) ----------
+  // ---------- panning (middle-mouse drag) ----------
   function handlePanMove(e: MouseEvent) {
     const p = panRef.current;
     if (!p) return;
@@ -192,7 +202,7 @@ export function Canvas({ tool, state, dispatch, library }: CanvasProps) {
       window.addEventListener('mouseup', handlePanUp);
       return;
     }
-    if (tool === 'select' && e.target === e.currentTarget) {
+    if (isBackgroundTarget(e)) {
       setSelectedFurnitureId(null);
       setSelectedWallId(null);
     }
@@ -219,9 +229,8 @@ export function Canvas({ tool, state, dispatch, library }: CanvasProps) {
     setSelectedFurnitureId(inst.id);
   }
 
-  // ---------- select tool: drag furniture ----------
+  // ---------- move/rotate furniture, edit wall vertices, select walls ----------
   function handleFurnitureMouseDown(e: React.MouseEvent, instId: string, instX: number, instY: number) {
-    if (tool !== 'select') return;
     e.stopPropagation();
     const world = toWorld(e.clientX, e.clientY);
     setSelectedFurnitureId(instId);
@@ -230,13 +239,11 @@ export function Canvas({ tool, state, dispatch, library }: CanvasProps) {
   }
 
   function handleRotateMouseDown(e: React.MouseEvent, instId: string, center: Point) {
-    if (tool !== 'select') return;
     e.stopPropagation();
     setDragCtx({ kind: 'rotate-furniture', id: instId, center });
   }
 
   function handleVertexMouseDown(e: React.MouseEvent, vertex: Point) {
-    if (tool !== 'select') return;
     e.stopPropagation();
     setSelectedFurnitureId(null);
     setSelectedWallId(null);
@@ -244,7 +251,6 @@ export function Canvas({ tool, state, dispatch, library }: CanvasProps) {
   }
 
   function handleWallMouseDown(e: React.MouseEvent, wallId: string) {
-    if (tool !== 'select') return;
     e.stopPropagation();
     setSelectedWallId(wallId);
     setSelectedFurnitureId(null);
@@ -314,26 +320,29 @@ export function Canvas({ tool, state, dispatch, library }: CanvasProps) {
   const resolution = snapResolution();
   const vw = size.width > 0 ? size.width / view.scale : 0;
   const vh = size.height > 0 ? size.height / view.scale : 0;
-  const vertices = tool === 'select' ? uniqueVertices(state.walls) : [];
+  const vertices = uniqueVertices(state.walls);
 
   function wallEndpoint(p: Point): Point {
     return liveVertex && pointsEqual(p, liveVertex.from) ? liveVertex.to : p;
   }
 
-  let svgClass = styles.svg;
-  if (tool === 'wall') svgClass = styles.svgWallTool;
+  const drawingLastPoint = drawingPoints ? drawingPoints[drawingPoints.length - 1] : null;
+  const showGhost = !dragCtx && hoverPoint;
+  const hoveredWall = hoveredWallId ? state.walls.find((w) => w.id === hoveredWallId) : null;
 
   return (
     <div className={styles.wrap} ref={containerRef}>
       {size.width > 0 && (
         <svg
-          className={svgClass}
+          className={styles.svg}
           width={size.width}
           height={size.height}
           viewBox={`${view.x} ${view.y} ${vw} ${vh}`}
           onClick={handleSvgClick}
           onDoubleClick={handleSvgDoubleClick}
           onMouseDown={handleSvgMouseDown}
+          onMouseMove={handleSvgMouseMove}
+          onMouseLeave={handleSvgMouseLeave}
           onDragOver={handleSvgDragOver}
           onDrop={handleSvgDrop}
         >
@@ -361,7 +370,7 @@ export function Canvas({ tool, state, dispatch, library }: CanvasProps) {
             </pattern>
           </defs>
 
-          <rect x={view.x} y={view.y} width={vw} height={vh} fill="url(#gridMajor)" />
+          <rect ref={bgRef} x={view.x} y={view.y} width={vw} height={vh} fill="url(#gridMajor)" />
 
           <g>
             {state.walls.map((w) => {
@@ -380,35 +389,34 @@ export function Canvas({ tool, state, dispatch, library }: CanvasProps) {
                     strokeLinecap="square"
                     vectorEffect="non-scaling-stroke"
                   />
-                  {tool === 'select' && (
-                    <line
-                      x1={a.x}
-                      y1={a.y}
-                      x2={b.x}
-                      y2={b.y}
-                      stroke="transparent"
-                      strokeWidth={WALL_HIT_PX}
-                      vectorEffect="non-scaling-stroke"
-                      style={{ cursor: 'pointer' }}
-                      onMouseDown={(e) => handleWallMouseDown(e, w.id)}
-                    />
-                  )}
+                  <line
+                    x1={a.x}
+                    y1={a.y}
+                    x2={b.x}
+                    y2={b.y}
+                    stroke="transparent"
+                    strokeWidth={WALL_HIT_PX}
+                    vectorEffect="non-scaling-stroke"
+                    style={{ cursor: 'pointer' }}
+                    onMouseDown={(e) => handleWallMouseDown(e, w.id)}
+                    onMouseEnter={() => setHoveredWallId(w.id)}
+                    onMouseLeave={() => setHoveredWallId((cur) => (cur === w.id ? null : cur))}
+                  />
                 </g>
               );
             })}
 
-            {tool === 'select' &&
-              vertices.map((v, i) => (
-                <circle
-                  key={i}
-                  cx={v.x}
-                  cy={v.y}
-                  r={VERTEX_HIT_PX / view.scale}
-                  fill="transparent"
-                  style={{ cursor: 'grab' }}
-                  onMouseDown={(e) => handleVertexMouseDown(e, v)}
-                />
-              ))}
+            {vertices.map((v, i) => (
+              <circle
+                key={i}
+                cx={v.x}
+                cy={v.y}
+                r={VERTEX_HIT_PX / view.scale}
+                fill="transparent"
+                style={{ cursor: 'grab' }}
+                onMouseDown={(e) => handleVertexMouseDown(e, v)}
+              />
+            ))}
 
             {drawingPoints && (
               <>
@@ -436,6 +444,31 @@ export function Canvas({ tool, state, dispatch, library }: CanvasProps) {
                 ))}
               </>
             )}
+
+            {drawingLastPoint && showGhost && (
+              <>
+                <line
+                  x1={drawingLastPoint.x}
+                  y1={drawingLastPoint.y}
+                  x2={hoverPoint!.x}
+                  y2={hoverPoint!.y}
+                  stroke="var(--blue-500)"
+                  strokeWidth={2}
+                  strokeDasharray="3 4"
+                  vectorEffect="non-scaling-stroke"
+                  opacity={0.7}
+                />
+                <DimensionLabel a={drawingLastPoint} b={hoverPoint!} scale={view.scale} color="var(--blue-600)" />
+              </>
+            )}
+
+            {hoveredWall && !dragCtx && (
+              <DimensionLabel a={hoveredWall.a} b={hoveredWall.b} scale={view.scale} color="var(--ink)" />
+            )}
+
+            {showGhost && (
+              <circle cx={hoverPoint!.x} cy={hoverPoint!.y} r={4 / view.scale} fill="var(--blue-500)" opacity={0.45} />
+            )}
           </g>
 
           <g>
@@ -446,12 +479,13 @@ export function Canvas({ tool, state, dispatch, library }: CanvasProps) {
               const pos = liveFurniturePos && liveFurniturePos.id === inst.id ? liveFurniturePos : inst;
               const rotation = liveRotation && liveRotation.id === inst.id ? liveRotation.rotation : inst.rotation;
               const selected = selectedFurnitureId === inst.id;
+              const isMoving = dragCtx?.kind === 'move-furniture' && dragCtx.id === inst.id;
               const worldCenter = { x: pos.x + center.x, y: pos.y + center.y };
               return (
                 <g key={inst.id}>
                   <g
                     transform={`translate(${pos.x} ${pos.y}) rotate(${rotation}, ${center.x}, ${center.y})`}
-                    style={{ cursor: tool === 'select' ? 'grab' : 'default' }}
+                    style={{ cursor: 'grab' }}
                     onMouseDown={(e) => handleFurnitureMouseDown(e, inst.id, inst.x, inst.y)}
                   >
                     <path
@@ -462,7 +496,7 @@ export function Canvas({ tool, state, dispatch, library }: CanvasProps) {
                       vectorEffect="non-scaling-stroke"
                     />
                   </g>
-                  {tool === 'select' && selected && (
+                  {selected && !isMoving && (
                     <RotateHandle
                       center={worldCenter}
                       rotation={rotation}
@@ -521,6 +555,31 @@ function RotateHandle({
         style={{ cursor: 'grab' }}
         onMouseDown={onMouseDown}
       />
+    </g>
+  );
+}
+
+function DimensionLabel({ a, b, scale, color }: { a: Point; b: Point; scale: number; color: string }) {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const dist = Math.hypot(dx, dy);
+  if (dist < 0.05) return null;
+  const midX = (a.x + b.x) / 2;
+  const midY = (a.y + b.y) / 2;
+  let angleDeg = (Math.atan2(dy, dx) * 180) / Math.PI;
+  if (angleDeg > 90 || angleDeg < -90) angleDeg += 180;
+  const text = formatFeetInches(dist);
+  const paddingX = 6;
+  const height = 18;
+  const width = text.length * 6.2 + paddingX * 2;
+  return (
+    <g transform={`translate(${midX} ${midY}) rotate(${angleDeg}) scale(${1 / scale})`}>
+      <g transform="translate(0 -14)">
+        <rect x={-width / 2} y={-height / 2} width={width} height={height} rx={5} fill={color} />
+        <text x={0} y={1} textAnchor="middle" dominantBaseline="middle" fontSize={11} fill="#fff">
+          {text}
+        </text>
+      </g>
     </g>
   );
 }

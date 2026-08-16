@@ -28,6 +28,27 @@ export function FurnitureCard({ template, onEdit, onDuplicate, onDelete, menuOpe
         e.dataTransfer.effectAllowed = 'copy';
       }}
     >
+      <div className={styles.kebabWrap} data-kebab>
+        <button
+          className={styles.kebab}
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleMenu();
+          }}
+          aria-label="Furniture options"
+        >
+          &#8942;
+        </button>
+        {menuOpen && (
+          <div className={styles.menu} data-kebab>
+            <button onClick={onEdit}>Edit</button>
+            <button onClick={onDuplicate}>Duplicate</button>
+            <button className={styles.danger} onClick={onDelete}>
+              Delete
+            </button>
+          </div>
+        )}
+      </div>
       <div className={styles.swatch}>
         <svg
           width={70}
@@ -38,35 +59,7 @@ export function FurnitureCard({ template, onEdit, onDuplicate, onDelete, menuOpe
           <path d={polygonPath(template.points)} fill="var(--blue-100)" stroke="var(--blue-500)" strokeWidth={0.06} />
         </svg>
       </div>
-      <div className={styles.row}>
-        <div>
-          <div className={styles.name}>{template.name}</div>
-          <div className={styles.dims}>
-            {width.toFixed(1)}' × {height.toFixed(1)}'
-          </div>
-        </div>
-        <div className={styles.kebabWrap} data-kebab>
-          <button
-            className={styles.kebab}
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggleMenu();
-            }}
-            aria-label="Furniture options"
-          >
-            &#8942;
-          </button>
-          {menuOpen && (
-            <div className={styles.menu} data-kebab>
-              <button onClick={onEdit}>Edit</button>
-              <button onClick={onDuplicate}>Duplicate</button>
-              <button className={styles.danger} onClick={onDelete}>
-                Delete
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
+      <div className={styles.name}>{template.name}</div>
     </div>
   );
 }

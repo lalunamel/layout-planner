@@ -1,5 +1,3 @@
-export type Tool = 'wall' | 'select';
-
 export interface Point {
   x: number;
   y: number;

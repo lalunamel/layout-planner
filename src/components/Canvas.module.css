@@ -7,9 +7,5 @@
 }
 
 .svg {
-  cursor: default;
-}
-
-.svgWallTool {
   cursor: crosshair;
 }

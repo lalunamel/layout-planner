@@ -59,6 +59,13 @@ export function uniqueVertices(walls: { a: Point; b: Point }[]): Point[] {
   return [...seen.values()];
 }
 
+export function formatFeetInches(feet: number): string {
+  const totalInches = Math.round(feet * 12);
+  const wholeFeet = Math.floor(totalInches / 12);
+  const inches = totalInches % 12;
+  return inches === 0 ? `${wholeFeet}'` : `${wholeFeet}'-${inches}"`;
+}
+
 export function polygonPath(points: Point[]): string {
   if (points.length === 0) return '';
   const [first, ...rest] = points;

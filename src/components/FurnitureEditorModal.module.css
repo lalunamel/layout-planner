@@ -53,40 +53,9 @@
   min-height: 0;
 }
 
-.tools {
-  width: 48px;
-  flex: none;
-  border-right: 1px solid var(--paper-grid-major);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding-top: 10px;
-}
-
-.toolBtn {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  border: 1px solid var(--blue-200);
-  background: var(--blue-100);
-  color: var(--blue-600);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
 .canvasWrap {
   flex: 1;
   position: relative;
-}
-
-.hint {
-  position: absolute;
-  bottom: 10px;
-  left: 12px;
-  font-size: 11.5px;
-  color: var(--ink-soft);
-  pointer-events: none;
 }
 
 .bottom {

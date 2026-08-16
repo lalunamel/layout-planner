@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { FurnitureTemplate, Point, Tool } from './model/types';
+import type { FurnitureTemplate, Point } from './model/types';
 import { makeId } from './model/geometry';
 import { useAppStore } from './store/useAppStore';
 import { Canvas } from './components/Canvas';
@@ -12,7 +12,6 @@ type EditorState = { editing: FurnitureTemplate | null } | null;
 
 export default function App() {
   const store = useAppStore();
-  const [tool, setTool] = useState<Tool>('wall');
   const [editor, setEditor] = useState<EditorState>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [nameDraft, setNameDraft] = useState('');
@@ -109,27 +108,6 @@ export default function App() {
         )}
         <div className="spacer" />
         <button
-          className={tool === 'wall' ? 'iconButton active' : 'iconButton'}
-          onClick={() => setTool('wall')}
-          aria-label="Draw walls"
-          title="Draw walls"
-        >
-          <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-            <path d="M3 21 21 3M14 3h7v7" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </button>
-        <button
-          className={tool === 'select' ? 'iconButton active' : 'iconButton'}
-          onClick={() => setTool('select')}
-          aria-label="Select and move"
-          title="Select and move"
-        >
-          <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-            <path d="M4 3l7 17 2.5-6.5L20 11 4 3z" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </button>
-        <div className="toolbarDivider" />
-        <button
           className="iconButton"
           onClick={() => store.undo()}
           disabled={!store.canUndo}
@@ -153,7 +131,7 @@ export default function App() {
         </button>
       </div>
       <div className="body">
-        <Canvas tool={tool} state={store.planState} dispatch={store.dispatchPlan} library={store.library} />
+        <Canvas state={store.planState} dispatch={store.dispatchPlan} library={store.library} />
         <FurniturePanel
           library={store.library}
           onNew={() => setEditor({ editing: null })}
