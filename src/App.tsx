@@ -42,6 +42,24 @@ export default function App() {
     }
   }, [editingName]);
 
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      const target = e.target as HTMLElement | null;
+      if (target && ['INPUT', 'TEXTAREA'].includes(target.tagName)) return;
+      const mod = e.metaKey || e.ctrlKey;
+      if (!mod || e.key.toLowerCase() !== 'z') return;
+      e.preventDefault();
+      if (e.shiftKey) {
+        store.redo();
+      } else {
+        store.undo();
+      }
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [store.undo, store.redo]);
+
   function handleSaveFurniture(name: string, points: Point[]) {
     if (editor?.editing) {
       store.updateTemplate(editor.editing.id, { name, points });
@@ -90,11 +108,48 @@ export default function App() {
           </span>
         )}
         <div className="spacer" />
-        <button className={tool === 'wall' ? 'active' : ''} onClick={() => setTool('wall')}>
-          Wall
+        <button
+          className={tool === 'wall' ? 'iconButton active' : 'iconButton'}
+          onClick={() => setTool('wall')}
+          aria-label="Draw walls"
+          title="Draw walls"
+        >
+          <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+            <path d="M3 21 21 3M14 3h7v7" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
         </button>
-        <button className={tool === 'select' ? 'active' : ''} onClick={() => setTool('select')}>
-          Select
+        <button
+          className={tool === 'select' ? 'iconButton active' : 'iconButton'}
+          onClick={() => setTool('select')}
+          aria-label="Select and move"
+          title="Select and move"
+        >
+          <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+            <path d="M4 3l7 17 2.5-6.5L20 11 4 3z" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+        <div className="toolbarDivider" />
+        <button
+          className="iconButton"
+          onClick={() => store.undo()}
+          disabled={!store.canUndo}
+          aria-label="Undo"
+          title="Undo"
+        >
+          <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+            <path d="M9 7 4 12l5 5M4 12h11a5 5 0 0 1 0 10h-1" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+        <button
+          className="iconButton"
+          onClick={() => store.redo()}
+          disabled={!store.canRedo}
+          aria-label="Redo"
+          title="Redo"
+        >
+          <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+            <path d="M15 7l5 5-5 5M20 12H9a5 5 0 0 0 0 10h1" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
         </button>
       </div>
       <div className="body">
