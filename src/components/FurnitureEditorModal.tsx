@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { FurnitureTemplate, Point } from '../model/types';
 import { distance, polygonPath, snapPoint } from '../model/geometry';
+import { GhostPoint, RubberBandPreview } from './DrawingAids';
 import styles from './FurnitureEditorModal.module.css';
 
 const SCALE = 28; // px per foot, fixed — furniture is small, no zoom needed
@@ -18,6 +19,7 @@ export function FurnitureEditorModal({ editing, onSave, onCancel }: FurnitureEdi
   const [name, setName] = useState(editing?.name ?? '');
   const [points, setPoints] = useState<Point[]>(editing?.points ?? []);
   const [drawingPoints, setDrawingPoints] = useState<Point[] | null>(null);
+  const [hoverPoint, setHoverPoint] = useState<Point | null>(null);
   const svgRef = useRef<SVGSVGElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const nameRef = useRef<HTMLInputElement | null>(null);
@@ -52,6 +54,14 @@ export function FurnitureEditorModal({ editing, onSave, onCancel }: FurnitureEdi
   function toLocal(clientX: number, clientY: number): Point {
     const rect = svgRef.current!.getBoundingClientRect();
     return { x: VIEW_X + (clientX - rect.left) / SCALE, y: VIEW_Y + (clientY - rect.top) / SCALE };
+  }
+
+  function handleMouseMove(e: React.MouseEvent<SVGSVGElement>) {
+    setHoverPoint(snapPoint(toLocal(e.clientX, e.clientY), SNAP_FT));
+  }
+
+  function handleMouseLeave() {
+    setHoverPoint(null);
   }
 
   function handleClick(e: React.MouseEvent<SVGSVGElement>) {
@@ -95,6 +105,8 @@ export function FurnitureEditorModal({ editing, onSave, onCancel }: FurnitureEdi
               height={size.height}
               viewBox={`${VIEW_X} ${VIEW_Y} ${size.width / SCALE} ${size.height / SCALE}`}
               onClick={handleClick}
+              onMouseMove={handleMouseMove}
+              onMouseLeave={handleMouseLeave}
               style={{ cursor: 'crosshair' }}
             >
               <defs>
@@ -138,6 +150,12 @@ export function FurnitureEditorModal({ editing, onSave, onCancel }: FurnitureEdi
                   ))}
                 </>
               )}
+
+              {drawingPoints && hoverPoint && (
+                <RubberBandPreview from={drawingPoints[drawingPoints.length - 1]} to={hoverPoint} scale={SCALE} />
+              )}
+
+              {hoverPoint && <GhostPoint point={hoverPoint} scale={SCALE} />}
             </svg>
             )}
           </div>

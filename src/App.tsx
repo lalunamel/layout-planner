@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { FurnitureTemplate, Point } from './model/types';
 import { makeId } from './model/geometry';
 import { useAppStore } from './store/useAppStore';
-import { Canvas } from './components/Canvas';
+import { Canvas, type CanvasMode } from './components/Canvas';
 import { FurniturePanel } from './components/FurniturePanel';
 import { FurnitureEditorModal } from './components/FurnitureEditorModal';
 import { PlansDrawer } from './components/PlansDrawer';
@@ -12,6 +12,7 @@ type EditorState = { editing: FurnitureTemplate | null } | null;
 
 export default function App() {
   const store = useAppStore();
+  const [mode, setMode] = useState<CanvasMode>('pointer');
   const [editor, setEditor] = useState<EditorState>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [nameDraft, setNameDraft] = useState('');
@@ -108,6 +109,31 @@ export default function App() {
         )}
         <div className="spacer" />
         <button
+          className={mode === 'pointer' ? 'iconButton active' : 'iconButton'}
+          onClick={() => setMode('pointer')}
+          aria-label="Pointer"
+          title="Pointer"
+        >
+          <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+            <path d="M4 3l7 17 2.5-6.5L20 11 4 3z" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+        <button
+          className={mode === 'pan' ? 'iconButton active' : 'iconButton'}
+          onClick={() => setMode('pan')}
+          aria-label="Pan"
+          title="Pan"
+        >
+          <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+            <path
+              d="M7 11V5.5a1.5 1.5 0 0 1 3 0V10M10 10.5V4.5a1.5 1.5 0 0 1 3 0V10M13 10V5.5a1.5 1.5 0 0 1 3 0V11M16 11.5V9a1.5 1.5 0 0 1 3 0v5c0 3.5-2 6.5-6 6.5h-1c-3 0-4.5-1-6-3l-2.2-3.3a1.4 1.4 0 0 1 2.2-1.7L7 15.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
+        <div className="toolbarDivider" />
+        <button
           className="iconButton"
           onClick={() => store.undo()}
           disabled={!store.canUndo}
@@ -131,7 +157,7 @@ export default function App() {
         </button>
       </div>
       <div className="body">
-        <Canvas state={store.planState} dispatch={store.dispatchPlan} library={store.library} />
+        <Canvas mode={mode} state={store.planState} dispatch={store.dispatchPlan} library={store.library} />
         <FurniturePanel
           library={store.library}
           onNew={() => setEditor({ editing: null })}

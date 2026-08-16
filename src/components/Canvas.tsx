@@ -5,7 +5,6 @@ import {
   MAJOR_GRID_FT,
   MINOR_GRID_FT,
   distance,
-  formatFeetInches,
   makeId,
   pointsEqual,
   polygonPath,
@@ -15,9 +14,13 @@ import {
   uniqueVertices,
 } from '../model/geometry';
 import { clampScale, DEFAULT_SCALE, MINOR_GRID_VISIBLE_SCALE, type View } from '../model/view';
+import { DimensionLabel, GhostPoint, RubberBandPreview } from './DrawingAids';
 import styles from './Canvas.module.css';
 
+export type CanvasMode = 'pointer' | 'pan';
+
 interface CanvasProps {
+  mode: CanvasMode;
   state: PlanState;
   dispatch: (action: PlanAction) => void;
   library: FurnitureTemplate[];
@@ -30,9 +33,9 @@ type DragCtx =
   | null;
 
 const VERTEX_HIT_PX = 9;
-const WALL_HIT_PX = 10;
+const WALL_HIT_PX = 20;
 
-export function Canvas({ state, dispatch, library }: CanvasProps) {
+export function Canvas({ mode, state, dispatch, library }: CanvasProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const bgRef = useRef<SVGRectElement | null>(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
@@ -41,6 +44,7 @@ export function Canvas({ state, dispatch, library }: CanvasProps) {
   const [hoverPoint, setHoverPoint] = useState<Point | null>(null);
   const [hoveredWallId, setHoveredWallId] = useState<string | null>(null);
   const panRef = useRef<{ x0: number; y0: number; startX: number; startY: number } | null>(null);
+  const [isPanning, setIsPanning] = useState(false);
 
   const [selectedFurnitureId, setSelectedFurnitureId] = useState<string | null>(null);
   const [selectedWallId, setSelectedWallId] = useState<string | null>(null);
@@ -108,6 +112,12 @@ export function Canvas({ state, dispatch, library }: CanvasProps) {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [selectedFurnitureId, selectedWallId, dispatch]);
 
+  useEffect(() => {
+    setDrawingPoints(null);
+    setSelectedFurnitureId(null);
+    setSelectedWallId(null);
+  }, [mode]);
+
   function snapResolution(): number {
     return view.scale >= MINOR_GRID_VISIBLE_SCALE ? MINOR_GRID_FT : MAJOR_GRID_FT;
   }
@@ -146,6 +156,11 @@ export function Canvas({ state, dispatch, library }: CanvasProps) {
   }
 
   function handleSvgClick(e: React.MouseEvent<SVGSVGElement>) {
+    if (suppressClickRef.current) {
+      suppressClickRef.current = false;
+      return;
+    }
+    if (mode !== 'pointer') return;
     if (!isBackgroundTarget(e)) return;
     const raw = toWorld(e.clientX, e.clientY);
     const pt = snapPoint(raw, snapResolution());
@@ -178,7 +193,7 @@ export function Canvas({ state, dispatch, library }: CanvasProps) {
     setDrawingPoints(null);
   }
 
-  // ---------- panning (middle-mouse drag) ----------
+  // ---------- panning (middle-mouse drag always; left-drag in pan mode) ----------
   function handlePanMove(e: MouseEvent) {
     const p = panRef.current;
     if (!p) return;
@@ -190,19 +205,29 @@ export function Canvas({ state, dispatch, library }: CanvasProps) {
   }
   function handlePanUp() {
     panRef.current = null;
+    setIsPanning(false);
     window.removeEventListener('mousemove', handlePanMove);
     window.removeEventListener('mouseup', handlePanUp);
+  }
+  function startPan(e: { clientX: number; clientY: number }) {
+    panRef.current = { x0: e.clientX, y0: e.clientY, startX: view.x, startY: view.y };
+    setIsPanning(true);
+    window.addEventListener('mousemove', handlePanMove);
+    window.addEventListener('mouseup', handlePanUp);
   }
 
   function handleSvgMouseDown(e: React.MouseEvent<SVGSVGElement>) {
     if (e.button === 1) {
       e.preventDefault();
-      panRef.current = { x0: e.clientX, y0: e.clientY, startX: view.x, startY: view.y };
-      window.addEventListener('mousemove', handlePanMove);
-      window.addEventListener('mouseup', handlePanUp);
+      startPan(e);
       return;
     }
-    if (isBackgroundTarget(e)) {
+    if (mode === 'pan' && e.button === 0) {
+      e.preventDefault();
+      startPan(e);
+      return;
+    }
+    if (mode === 'pointer' && isBackgroundTarget(e)) {
       setSelectedFurnitureId(null);
       setSelectedWallId(null);
     }
@@ -223,14 +248,14 @@ export function Canvas({ state, dispatch, library }: CanvasProps) {
     if (!template) return;
     const world = toWorld(e.clientX, e.clientY);
     const center = templateCenter(template.points);
-    const snapped = snapPoint({ x: world.x - center.x, y: world.y - center.y }, snapResolution());
-    const inst = { id: makeId('placed'), templateId: template.id, x: snapped.x, y: snapped.y, rotation: 0 };
+    const inst = { id: makeId('placed'), templateId: template.id, x: world.x - center.x, y: world.y - center.y, rotation: 0 };
     dispatch({ type: 'ADD_FURNITURE', item: inst });
     setSelectedFurnitureId(inst.id);
   }
 
   // ---------- move/rotate furniture, edit wall vertices, select walls ----------
   function handleFurnitureMouseDown(e: React.MouseEvent, instId: string, instX: number, instY: number) {
+    if (mode !== 'pointer') return;
     e.stopPropagation();
     const world = toWorld(e.clientX, e.clientY);
     setSelectedFurnitureId(instId);
@@ -239,11 +264,13 @@ export function Canvas({ state, dispatch, library }: CanvasProps) {
   }
 
   function handleRotateMouseDown(e: React.MouseEvent, instId: string, center: Point) {
+    if (mode !== 'pointer') return;
     e.stopPropagation();
     setDragCtx({ kind: 'rotate-furniture', id: instId, center });
   }
 
   function handleVertexMouseDown(e: React.MouseEvent, vertex: Point) {
+    if (mode !== 'pointer') return;
     e.stopPropagation();
     setSelectedFurnitureId(null);
     setSelectedWallId(null);
@@ -251,6 +278,7 @@ export function Canvas({ state, dispatch, library }: CanvasProps) {
   }
 
   function handleWallMouseDown(e: React.MouseEvent, wallId: string) {
+    if (mode !== 'pointer') return;
     e.stopPropagation();
     setSelectedWallId(wallId);
     setSelectedFurnitureId(null);
@@ -261,6 +289,10 @@ export function Canvas({ state, dispatch, library }: CanvasProps) {
   const liveFurniturePosRef = useRef<{ id: string; x: number; y: number } | null>(null);
   const liveRotationRef = useRef<{ id: string; rotation: number } | null>(null);
   const liveVertexRef = useRef<{ from: Point; to: Point } | null>(null);
+  // Ending a drag with mouseup over the background still fires a synthetic
+  // "click" there (mousedown and mouseup targeted different elements), which
+  // handleSvgClick would otherwise read as "place a wall vertex here."
+  const suppressClickRef = useRef(false);
 
   useEffect(() => {
     if (!dragCtx) return;
@@ -268,11 +300,7 @@ export function Canvas({ state, dispatch, library }: CanvasProps) {
     function onMove(e: MouseEvent) {
       const world = toWorld(e.clientX, e.clientY);
       if (dragCtx!.kind === 'move-furniture') {
-        const snapped = snapPoint(
-          { x: world.x + dragCtx!.offsetX, y: world.y + dragCtx!.offsetY },
-          snapResolution(),
-        );
-        const next = { id: dragCtx!.id, x: snapped.x, y: snapped.y };
+        const next = { id: dragCtx!.id, x: world.x + dragCtx!.offsetX, y: world.y + dragCtx!.offsetY };
         liveFurniturePosRef.current = next;
         setLiveFurniturePos(next);
       } else if (dragCtx!.kind === 'rotate-furniture') {
@@ -299,6 +327,7 @@ export function Canvas({ state, dispatch, library }: CanvasProps) {
         const { from, to } = liveVertexRef.current;
         dispatch({ type: 'MOVE_VERTEX', from, to });
       }
+      suppressClickRef.current = true;
       liveFurniturePosRef.current = null;
       liveRotationRef.current = null;
       liveVertexRef.current = null;
@@ -327,14 +356,16 @@ export function Canvas({ state, dispatch, library }: CanvasProps) {
   }
 
   const drawingLastPoint = drawingPoints ? drawingPoints[drawingPoints.length - 1] : null;
-  const showGhost = !dragCtx && hoverPoint;
+  const showGhost = mode === 'pointer' && !dragCtx && hoverPoint;
   const hoveredWall = hoveredWallId ? state.walls.find((w) => w.id === hoveredWallId) : null;
+  const svgCursor = isPanning ? 'grabbing' : mode === 'pan' ? 'grab' : undefined;
 
   return (
     <div className={styles.wrap} ref={containerRef}>
       {size.width > 0 && (
         <svg
           className={styles.svg}
+          style={svgCursor ? { cursor: svgCursor } : undefined}
           width={size.width}
           height={size.height}
           viewBox={`${view.x} ${view.y} ${vw} ${vh}`}
@@ -397,7 +428,7 @@ export function Canvas({ state, dispatch, library }: CanvasProps) {
                     stroke="transparent"
                     strokeWidth={WALL_HIT_PX}
                     vectorEffect="non-scaling-stroke"
-                    style={{ cursor: 'pointer' }}
+                    style={{ cursor: mode === 'pointer' ? 'pointer' : undefined }}
                     onMouseDown={(e) => handleWallMouseDown(e, w.id)}
                     onMouseEnter={() => setHoveredWallId(w.id)}
                     onMouseLeave={() => setHoveredWallId((cur) => (cur === w.id ? null : cur))}
@@ -413,7 +444,7 @@ export function Canvas({ state, dispatch, library }: CanvasProps) {
                 cy={v.y}
                 r={VERTEX_HIT_PX / view.scale}
                 fill="transparent"
-                style={{ cursor: 'grab' }}
+                style={{ cursor: mode === 'pointer' ? 'grab' : undefined }}
                 onMouseDown={(e) => handleVertexMouseDown(e, v)}
               />
             ))}
@@ -446,29 +477,14 @@ export function Canvas({ state, dispatch, library }: CanvasProps) {
             )}
 
             {drawingLastPoint && showGhost && (
-              <>
-                <line
-                  x1={drawingLastPoint.x}
-                  y1={drawingLastPoint.y}
-                  x2={hoverPoint!.x}
-                  y2={hoverPoint!.y}
-                  stroke="var(--blue-500)"
-                  strokeWidth={2}
-                  strokeDasharray="3 4"
-                  vectorEffect="non-scaling-stroke"
-                  opacity={0.7}
-                />
-                <DimensionLabel a={drawingLastPoint} b={hoverPoint!} scale={view.scale} color="var(--blue-600)" />
-              </>
+              <RubberBandPreview from={drawingLastPoint} to={hoverPoint!} scale={view.scale} />
             )}
 
             {hoveredWall && !dragCtx && (
               <DimensionLabel a={hoveredWall.a} b={hoveredWall.b} scale={view.scale} color="var(--ink)" />
             )}
 
-            {showGhost && (
-              <circle cx={hoverPoint!.x} cy={hoverPoint!.y} r={4 / view.scale} fill="var(--blue-500)" opacity={0.45} />
-            )}
+            {showGhost && <GhostPoint point={hoverPoint!} scale={view.scale} />}
           </g>
 
           <g>
@@ -485,7 +501,7 @@ export function Canvas({ state, dispatch, library }: CanvasProps) {
                 <g key={inst.id}>
                   <g
                     transform={`translate(${pos.x} ${pos.y}) rotate(${rotation}, ${center.x}, ${center.y})`}
-                    style={{ cursor: 'grab' }}
+                    style={{ cursor: mode === 'pointer' ? 'grab' : undefined }}
                     onMouseDown={(e) => handleFurnitureMouseDown(e, inst.id, inst.x, inst.y)}
                   >
                     <path
@@ -496,7 +512,7 @@ export function Canvas({ state, dispatch, library }: CanvasProps) {
                       vectorEffect="non-scaling-stroke"
                     />
                   </g>
-                  {selected && !isMoving && (
+                  {selected && !isMoving && mode === 'pointer' && (
                     <RotateHandle
                       center={worldCenter}
                       rotation={rotation}
@@ -544,41 +560,20 @@ function RotateHandle({
         strokeDasharray="3 3"
         vectorEffect="non-scaling-stroke"
       />
-      <circle
-        cx={hx}
-        cy={hy}
-        r={7 / scale}
-        fill="#fff"
-        stroke="var(--blue-600)"
-        strokeWidth={2}
-        vectorEffect="non-scaling-stroke"
-        style={{ cursor: 'grab' }}
-        onMouseDown={onMouseDown}
-      />
-    </g>
-  );
-}
-
-function DimensionLabel({ a, b, scale, color }: { a: Point; b: Point; scale: number; color: string }) {
-  const dx = b.x - a.x;
-  const dy = b.y - a.y;
-  const dist = Math.hypot(dx, dy);
-  if (dist < 0.05) return null;
-  const midX = (a.x + b.x) / 2;
-  const midY = (a.y + b.y) / 2;
-  let angleDeg = (Math.atan2(dy, dx) * 180) / Math.PI;
-  if (angleDeg > 90 || angleDeg < -90) angleDeg += 180;
-  const text = formatFeetInches(dist);
-  const paddingX = 6;
-  const height = 18;
-  const width = text.length * 6.2 + paddingX * 2;
-  return (
-    <g transform={`translate(${midX} ${midY}) rotate(${angleDeg}) scale(${1 / scale})`}>
-      <g transform="translate(0 -14)">
-        <rect x={-width / 2} y={-height / 2} width={width} height={height} rx={5} fill={color} />
-        <text x={0} y={1} textAnchor="middle" dominantBaseline="middle" fontSize={11} fill="#fff">
-          {text}
-        </text>
+      <g transform={`translate(${hx} ${hy}) scale(${1 / scale})`}>
+        <circle r={13} fill="#fff" stroke="var(--blue-200)" strokeWidth={1.5} style={{ cursor: 'grab' }} onMouseDown={onMouseDown} />
+        <g
+          transform="translate(-8 -8) scale(0.67)"
+          stroke="var(--blue-600)"
+          strokeWidth={2.2}
+          fill="none"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          style={{ pointerEvents: 'none' }}
+        >
+          <path d="M1 4v6h6" />
+          <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+        </g>
       </g>
     </g>
   );

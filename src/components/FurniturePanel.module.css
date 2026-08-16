@@ -91,9 +91,6 @@
 .swatch {
   height: 56px;
   border-radius: 9px;
-  background:
-    repeating-linear-gradient(0deg, var(--blue-50), var(--blue-50) 7px, #ffffff 7px, #ffffff 8px),
-    repeating-linear-gradient(90deg, var(--blue-50), var(--blue-50) 7px, #ffffff 7px, #ffffff 8px);
   display: flex;
   align-items: center;
   justify-content: center;
