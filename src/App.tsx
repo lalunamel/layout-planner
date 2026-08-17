@@ -160,8 +160,8 @@ export default function App() {
         <button
           className={effectiveMode === 'pointer' ? 'iconButton active' : 'iconButton'}
           onClick={() => setMode('pointer')}
-          aria-label="Pointer"
-          title="Pointer"
+          aria-label="Create point"
+          title="Create point"
         >
           <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
             <path d="M4 3l7 17 2.5-6.5L20 11 4 3z" strokeLinecap="round" strokeLinejoin="round" />
