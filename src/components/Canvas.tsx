@@ -504,6 +504,9 @@ export function Canvas({ mode, state, dispatch, library }: CanvasProps) {
               const template = library.find((t) => t.id === inst.templateId);
               if (!template) return null;
               const center = templateCenter(template.points);
+              const xs = template.points.map((p) => p.x);
+              const ys = template.points.map((p) => p.y);
+              const corner = { x: Math.max(...xs), y: Math.min(...ys) };
               const pos = liveFurniturePos && liveFurniturePos.id === inst.id ? liveFurniturePos : inst;
               const rotation = liveRotation && liveRotation.id === inst.id ? liveRotation.rotation : inst.rotation;
               const selected = selectedFurnitureId === inst.id;
@@ -523,16 +526,14 @@ export function Canvas({ mode, state, dispatch, library }: CanvasProps) {
                       strokeWidth={selected ? 2.5 : 1.5}
                       vectorEffect="non-scaling-stroke"
                     />
+                    {selected && !isMoving && mode === 'pointer' && (
+                      <RotateHandle
+                        corner={corner}
+                        scale={view.scale}
+                        onMouseDown={(e) => handleRotateMouseDown(e, inst.id, worldCenter)}
+                      />
+                    )}
                   </g>
-                  {selected && !isMoving && mode === 'pointer' && (
-                    <RotateHandle
-                      center={worldCenter}
-                      rotation={rotation}
-                      radiusPx={30}
-                      scale={view.scale}
-                      onMouseDown={(e) => handleRotateMouseDown(e, inst.id, worldCenter)}
-                    />
-                  )}
                 </g>
               );
             })}
@@ -544,35 +545,17 @@ export function Canvas({ mode, state, dispatch, library }: CanvasProps) {
 }
 
 function RotateHandle({
-  center,
-  rotation,
-  radiusPx,
+  corner,
   scale,
   onMouseDown,
 }: {
-  center: Point;
-  rotation: number;
-  radiusPx: number;
+  corner: Point;
   scale: number;
   onMouseDown: (e: React.MouseEvent) => void;
 }) {
-  const r = radiusPx / scale;
-  const rad = ((rotation - 90) * Math.PI) / 180;
-  const hx = center.x + r * Math.cos(rad);
-  const hy = center.y + r * Math.sin(rad);
   return (
-    <g>
-      <line
-        x1={center.x}
-        y1={center.y}
-        x2={hx}
-        y2={hy}
-        stroke="var(--blue-500)"
-        strokeWidth={1.5}
-        strokeDasharray="3 3"
-        vectorEffect="non-scaling-stroke"
-      />
-      <g transform={`translate(${hx} ${hy}) scale(${1 / scale})`}>
+    <g transform={`translate(${corner.x} ${corner.y}) scale(${1 / scale})`}>
+      <g transform="translate(10 -10)">
         <circle r={13} fill="#fff" stroke="var(--blue-200)" strokeWidth={1.5} style={{ cursor: 'grab' }} onMouseDown={onMouseDown} />
         <g
           transform="translate(-8 -8) scale(0.67)"
@@ -590,3 +573,4 @@ function RotateHandle({
     </g>
   );
 }
+

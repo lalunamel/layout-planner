@@ -4,10 +4,14 @@ import { distance, polygonPath, snapPoint } from '../model/geometry';
 import { GhostPoint, RubberBandPreview } from './DrawingAids';
 import styles from './FurnitureEditorModal.module.css';
 
-const SCALE = 28; // px per foot, fixed — furniture is small, no zoom needed
 const SNAP_FT = 0.5;
-const VIEW_X = -1;
-const VIEW_Y = -1;
+const DEFAULT_SCALE = 48; // px per foot — furniture is small (most under ~8ft), so start zoomed in
+const MIN_SCALE = 20;
+const MAX_SCALE = 160;
+
+function clampScale(scale: number): number {
+  return Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale));
+}
 
 interface FurnitureEditorModalProps {
   editing: FurnitureTemplate | null;
@@ -20,6 +24,7 @@ export function FurnitureEditorModal({ editing, onSave, onCancel }: FurnitureEdi
   const [points, setPoints] = useState<Point[]>(editing?.points ?? []);
   const [drawingPoints, setDrawingPoints] = useState<Point[] | null>(null);
   const [hoverPoint, setHoverPoint] = useState<Point | null>(null);
+  const [view, setView] = useState({ x: -1, y: -1, scale: DEFAULT_SCALE });
   const svgRef = useRef<SVGSVGElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const nameRef = useRef<HTMLInputElement | null>(null);
@@ -51,9 +56,33 @@ export function FurnitureEditorModal({ editing, onSave, onCancel }: FurnitureEdi
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    function onWheel(e: WheelEvent) {
+      e.preventDefault();
+      const rect = el!.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+      setView((v) => {
+        const worldXAtMouse = v.x + mouseX / v.scale;
+        const worldYAtMouse = v.y + mouseY / v.scale;
+        const zoomFactor = Math.exp(-e.deltaY * 0.0015);
+        const newScale = clampScale(v.scale * zoomFactor);
+        return {
+          x: worldXAtMouse - mouseX / newScale,
+          y: worldYAtMouse - mouseY / newScale,
+          scale: newScale,
+        };
+      });
+    }
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, []);
+
   function toLocal(clientX: number, clientY: number): Point {
     const rect = svgRef.current!.getBoundingClientRect();
-    return { x: VIEW_X + (clientX - rect.left) / SCALE, y: VIEW_Y + (clientY - rect.top) / SCALE };
+    return { x: view.x + (clientX - rect.left) / view.scale, y: view.y + (clientY - rect.top) / view.scale };
   }
 
   function handleMouseMove(e: React.MouseEvent<SVGSVGElement>) {
@@ -74,7 +103,7 @@ export function FurnitureEditorModal({ editing, onSave, onCancel }: FurnitureEdi
       return;
     }
     const start = drawingPoints[0];
-    if (drawingPoints.length >= 2 && distance(pt, start) < 10 / SCALE) {
+    if (drawingPoints.length >= 2 && distance(pt, start) < 10 / view.scale) {
       setPoints(drawingPoints);
       setDrawingPoints(null);
     } else {
@@ -83,6 +112,8 @@ export function FurnitureEditorModal({ editing, onSave, onCancel }: FurnitureEdi
   }
 
   const canSave = name.trim().length > 0 && points.length >= 3;
+  const vw = size.width > 0 ? size.width / view.scale : 0;
+  const vh = size.height > 0 ? size.height / view.scale : 0;
 
   return (
     <div className={styles.scrim} onMouseDown={(e) => e.target === e.currentTarget && onCancel()}>
@@ -99,64 +130,70 @@ export function FurnitureEditorModal({ editing, onSave, onCancel }: FurnitureEdi
         <div className={styles.body}>
           <div className={styles.canvasWrap} ref={wrapRef}>
             {size.width > 0 && (
-            <svg
-              ref={svgRef}
-              width={size.width}
-              height={size.height}
-              viewBox={`${VIEW_X} ${VIEW_Y} ${size.width / SCALE} ${size.height / SCALE}`}
-              onClick={handleClick}
-              onMouseMove={handleMouseMove}
-              onMouseLeave={handleMouseLeave}
-              style={{ cursor: 'crosshair' }}
-            >
-              <defs>
-                <pattern id="editorGrid" width={SNAP_FT} height={SNAP_FT} patternUnits="userSpaceOnUse">
+              <svg
+                ref={svgRef}
+                width={size.width}
+                height={size.height}
+                viewBox={`${view.x} ${view.y} ${vw} ${vh}`}
+                onClick={handleClick}
+                onMouseMove={handleMouseMove}
+                onMouseLeave={handleMouseLeave}
+                style={{ cursor: 'crosshair' }}
+              >
+                <defs>
+                  <pattern id="editorGrid" width={SNAP_FT} height={SNAP_FT} patternUnits="userSpaceOnUse">
+                    <path
+                      d={`M ${SNAP_FT} 0 L 0 0 0 ${SNAP_FT}`}
+                      fill="none"
+                      stroke="var(--paper-grid-minor)"
+                      strokeWidth={0.03}
+                    />
+                  </pattern>
+                </defs>
+                <rect x={view.x} y={view.y} width={vw} height={vh} fill="url(#editorGrid)" />
+
+                {points.length >= 3 && (
                   <path
-                    d={`M ${SNAP_FT} 0 L 0 0 0 ${SNAP_FT}`}
-                    fill="none"
-                    stroke="var(--paper-grid-minor)"
-                    strokeWidth={0.015}
+                    d={polygonPath(points)}
+                    fill="var(--blue-100)"
+                    stroke="var(--blue-600)"
+                    strokeWidth={2}
+                    vectorEffect="non-scaling-stroke"
                   />
-                </pattern>
-              </defs>
-              <rect x={-20} y={-20} width={80} height={80} fill="url(#editorGrid)" />
+                )}
 
-              {points.length >= 3 && (
-                <path d={polygonPath(points)} fill="var(--blue-100)" stroke="var(--blue-600)" strokeWidth={2} vectorEffect="non-scaling-stroke" />
-              )}
+                {drawingPoints && (
+                  <>
+                    {drawingPoints.slice(0, -1).map((p, i) => (
+                      <line
+                        key={i}
+                        x1={p.x}
+                        y1={p.y}
+                        x2={drawingPoints[i + 1].x}
+                        y2={drawingPoints[i + 1].y}
+                        stroke="var(--blue-500)"
+                        strokeWidth={2}
+                        vectorEffect="non-scaling-stroke"
+                      />
+                    ))}
+                    {drawingPoints.map((p, i) => (
+                      <circle
+                        key={i}
+                        cx={p.x}
+                        cy={p.y}
+                        r={(i === 0 ? 6 : 4) / view.scale}
+                        fill={i === 0 ? 'var(--blue-600)' : 'var(--blue-500)'}
+                      />
+                    ))}
+                  </>
+                )}
 
-              {drawingPoints && (
-                <>
-                  {drawingPoints.slice(0, -1).map((p, i) => (
-                    <line
-                      key={i}
-                      x1={p.x}
-                      y1={p.y}
-                      x2={drawingPoints[i + 1].x}
-                      y2={drawingPoints[i + 1].y}
-                      stroke="var(--blue-500)"
-                      strokeWidth={2}
-                      vectorEffect="non-scaling-stroke"
-                    />
-                  ))}
-                  {drawingPoints.map((p, i) => (
-                    <circle
-                      key={i}
-                      cx={p.x}
-                      cy={p.y}
-                      r={(i === 0 ? 6 : 4) / SCALE}
-                      fill={i === 0 ? 'var(--blue-600)' : 'var(--blue-500)'}
-                    />
-                  ))}
-                </>
-              )}
+                {drawingPoints && hoverPoint && (
+                  <RubberBandPreview from={drawingPoints[drawingPoints.length - 1]} to={hoverPoint} scale={view.scale} />
+                )}
 
-              {drawingPoints && hoverPoint && (
-                <RubberBandPreview from={drawingPoints[drawingPoints.length - 1]} to={hoverPoint} scale={SCALE} />
-              )}
-
-              {hoverPoint && <GhostPoint point={hoverPoint} scale={SCALE} />}
-            </svg>
+                {hoverPoint && <GhostPoint point={hoverPoint} scale={view.scale} />}
+              </svg>
             )}
           </div>
         </div>
