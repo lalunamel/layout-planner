@@ -8,6 +8,7 @@ import {
   makeId,
   pointsEqual,
   polygonPath,
+  snap,
   snapAngle,
   snapPoint,
   templateCenter,
@@ -30,6 +31,7 @@ type DragCtx =
   | { kind: 'move-furniture'; id: string; offsetX: number; offsetY: number }
   | { kind: 'rotate-furniture'; id: string; center: Point }
   | { kind: 'move-vertex'; from: Point }
+  | { kind: 'move-wall'; wallId: string; startWorld: Point; originalA: Point; originalB: Point }
   | null;
 
 const VERTEX_HIT_PX = 9;
@@ -52,6 +54,12 @@ export function Canvas({ mode, state, dispatch, library }: CanvasProps) {
   const [liveFurniturePos, setLiveFurniturePos] = useState<{ id: string; x: number; y: number } | null>(null);
   const [liveRotation, setLiveRotation] = useState<{ id: string; rotation: number } | null>(null);
   const [liveVertex, setLiveVertex] = useState<{ from: Point; to: Point } | null>(null);
+  const [liveWallMove, setLiveWallMove] = useState<{
+    originalA: Point;
+    originalB: Point;
+    previewA: Point;
+    previewB: Point;
+  } | null>(null);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -280,8 +288,12 @@ export function Canvas({ mode, state, dispatch, library }: CanvasProps) {
   function handleWallMouseDown(e: React.MouseEvent, wallId: string) {
     if (mode !== 'pointer') return;
     e.stopPropagation();
+    const wall = state.walls.find((w) => w.id === wallId);
+    if (!wall) return;
     setSelectedWallId(wallId);
     setSelectedFurnitureId(null);
+    const world = toWorld(e.clientX, e.clientY);
+    setDragCtx({ kind: 'move-wall', wallId, startWorld: world, originalA: wall.a, originalB: wall.b });
   }
 
   // Refs mirror the live* state so `onUp` always reads the latest drag
@@ -289,6 +301,9 @@ export function Canvas({ mode, state, dispatch, library }: CanvasProps) {
   const liveFurniturePosRef = useRef<{ id: string; x: number; y: number } | null>(null);
   const liveRotationRef = useRef<{ id: string; rotation: number } | null>(null);
   const liveVertexRef = useRef<{ from: Point; to: Point } | null>(null);
+  const liveWallMoveRef = useRef<{ originalA: Point; originalB: Point; previewA: Point; previewB: Point } | null>(
+    null,
+  );
   // Ending a drag with mouseup over the background still fires a synthetic
   // "click" there (mousedown and mouseup targeted different elements), which
   // handleSvgClick would otherwise read as "place a wall vertex here."
@@ -313,6 +328,18 @@ export function Canvas({ mode, state, dispatch, library }: CanvasProps) {
         const next = { from: dragCtx!.from, to: snapped };
         liveVertexRef.current = next;
         setLiveVertex(next);
+      } else if (dragCtx!.kind === 'move-wall') {
+        const res = snapResolution();
+        const dx = snap(world.x - dragCtx!.startWorld.x, res);
+        const dy = snap(world.y - dragCtx!.startWorld.y, res);
+        const next = {
+          originalA: dragCtx!.originalA,
+          originalB: dragCtx!.originalB,
+          previewA: { x: dragCtx!.originalA.x + dx, y: dragCtx!.originalA.y + dy },
+          previewB: { x: dragCtx!.originalB.x + dx, y: dragCtx!.originalB.y + dy },
+        };
+        liveWallMoveRef.current = next;
+        setLiveWallMove(next);
       }
     }
 
@@ -326,6 +353,14 @@ export function Canvas({ mode, state, dispatch, library }: CanvasProps) {
       } else if (dragCtx!.kind === 'move-vertex' && liveVertexRef.current) {
         const { from, to } = liveVertexRef.current;
         dispatch({ type: 'MOVE_VERTEX', from, to });
+      } else if (dragCtx!.kind === 'move-wall' && liveWallMoveRef.current) {
+        const { originalA, previewA } = liveWallMoveRef.current;
+        dispatch({
+          type: 'MOVE_WALL',
+          wallId: dragCtx!.wallId,
+          dx: previewA.x - originalA.x,
+          dy: previewA.y - originalA.y,
+        });
       }
       // The stray click (if any) fires synchronously right after this mouseup,
       // in the same task — so clear the flag on a timeout as a safety net in
@@ -339,10 +374,12 @@ export function Canvas({ mode, state, dispatch, library }: CanvasProps) {
       liveFurniturePosRef.current = null;
       liveRotationRef.current = null;
       liveVertexRef.current = null;
+      liveWallMoveRef.current = null;
       setDragCtx(null);
       setLiveFurniturePos(null);
       setLiveRotation(null);
       setLiveVertex(null);
+      setLiveWallMove(null);
     }
 
     window.addEventListener('mousemove', onMove);
@@ -360,12 +397,19 @@ export function Canvas({ mode, state, dispatch, library }: CanvasProps) {
   const vertices = uniqueVertices(state.walls);
 
   function wallEndpoint(p: Point): Point {
-    return liveVertex && pointsEqual(p, liveVertex.from) ? liveVertex.to : p;
+    if (liveVertex && pointsEqual(p, liveVertex.from)) return liveVertex.to;
+    if (liveWallMove) {
+      if (pointsEqual(p, liveWallMove.originalA)) return liveWallMove.previewA;
+      if (pointsEqual(p, liveWallMove.originalB)) return liveWallMove.previewB;
+    }
+    return p;
   }
 
   const drawingLastPoint = drawingPoints ? drawingPoints[drawingPoints.length - 1] : null;
   const showGhost = mode === 'pointer' && !dragCtx && hoverPoint;
   const hoveredWall = hoveredWallId ? state.walls.find((w) => w.id === hoveredWallId) : null;
+  const showHoveredWallLabel =
+    hoveredWall && (!dragCtx || (dragCtx.kind === 'move-wall' && dragCtx.wallId === hoveredWallId));
   const svgCursor = isPanning ? 'grabbing' : mode === 'pan' ? 'grab' : undefined;
 
   return (
@@ -440,7 +484,7 @@ export function Canvas({ mode, state, dispatch, library }: CanvasProps) {
                     stroke="transparent"
                     strokeWidth={WALL_HIT_PX}
                     vectorEffect="non-scaling-stroke"
-                    style={{ cursor: mode === 'pointer' ? 'pointer' : undefined }}
+                    style={{ cursor: mode === 'pointer' ? 'grab' : undefined }}
                     onMouseDown={(e) => handleWallMouseDown(e, w.id)}
                     onMouseEnter={() => setHoveredWallId(w.id)}
                     onMouseLeave={() => setHoveredWallId((cur) => (cur === w.id ? null : cur))}
@@ -492,8 +536,13 @@ export function Canvas({ mode, state, dispatch, library }: CanvasProps) {
               <RubberBandPreview from={drawingLastPoint} to={hoverPoint!} scale={view.scale} />
             )}
 
-            {hoveredWall && !dragCtx && (
-              <DimensionLabel a={hoveredWall.a} b={hoveredWall.b} scale={view.scale} color="var(--ink)" />
+            {showHoveredWallLabel && (
+              <DimensionLabel
+                a={wallEndpoint(hoveredWall!.a)}
+                b={wallEndpoint(hoveredWall!.b)}
+                scale={view.scale}
+                color="var(--ink)"
+              />
             )}
 
             {showGhost && !hoveredWallId && <GhostPoint point={hoverPoint!} scale={view.scale} />}

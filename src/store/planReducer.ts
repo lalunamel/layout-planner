@@ -8,6 +8,7 @@ export interface PlanState {
 export type PlanAction =
   | { type: 'ADD_WALLS'; walls: Wall[] }
   | { type: 'MOVE_VERTEX'; from: Point; to: Point }
+  | { type: 'MOVE_WALL'; wallId: string; dx: number; dy: number }
   | { type: 'DELETE_WALL'; wallId: string }
   | { type: 'ADD_FURNITURE'; item: PlacedFurniture }
   | { type: 'MOVE_FURNITURE'; id: string; x: number; y: number }
@@ -28,6 +29,19 @@ export function planReducer(state: PlanState, action: PlanAction): PlanState {
         ...w,
         a: pointsEqual(w.a, action.from) ? action.to : w.a,
         b: pointsEqual(w.b, action.from) ? action.to : w.b,
+      }));
+      return { ...state, walls };
+    }
+
+    case 'MOVE_WALL': {
+      const wall = state.walls.find((w) => w.id === action.wallId);
+      if (!wall) return state;
+      const newA = { x: wall.a.x + action.dx, y: wall.a.y + action.dy };
+      const newB = { x: wall.b.x + action.dx, y: wall.b.y + action.dy };
+      const walls = state.walls.map((w) => ({
+        ...w,
+        a: pointsEqual(w.a, wall.a) ? newA : pointsEqual(w.a, wall.b) ? newB : w.a,
+        b: pointsEqual(w.b, wall.a) ? newA : pointsEqual(w.b, wall.b) ? newB : w.b,
       }));
       return { ...state, walls };
     }
