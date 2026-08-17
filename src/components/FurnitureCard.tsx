@@ -9,9 +9,18 @@ interface FurnitureCardProps {
   onDelete: () => void;
   menuOpen: boolean;
   onToggleMenu: () => void;
+  onStartDrag: (e: React.MouseEvent) => void;
 }
 
-export function FurnitureCard({ template, onEdit, onDuplicate, onDelete, menuOpen, onToggleMenu }: FurnitureCardProps) {
+export function FurnitureCard({
+  template,
+  onEdit,
+  onDuplicate,
+  onDelete,
+  menuOpen,
+  onToggleMenu,
+  onStartDrag,
+}: FurnitureCardProps) {
   const { width, height } = boundingBox(template.points);
   const xs = template.points.map((p) => p.x);
   const ys = template.points.map((p) => p.y);
@@ -20,15 +29,8 @@ export function FurnitureCard({ template, onEdit, onDuplicate, onDelete, menuOpe
   const pad = Math.max(width, height) * 0.15 || 0.5;
 
   return (
-    <div
-      className={styles.card}
-      draggable
-      onDragStart={(e) => {
-        e.dataTransfer.setData('application/x-furniture-template', template.id);
-        e.dataTransfer.effectAllowed = 'copy';
-      }}
-    >
-      <div className={styles.kebabWrap} data-kebab>
+    <div className={styles.card} onMouseDown={onStartDrag}>
+      <div className={styles.kebabWrap} data-kebab onMouseDown={(e) => e.stopPropagation()}>
         <button
           className={styles.kebab}
           onClick={(e) => {

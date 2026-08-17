@@ -25,6 +25,8 @@ interface CanvasProps {
   state: PlanState;
   dispatch: (action: PlanAction) => void;
   library: FurnitureTemplate[];
+  draggingTemplate: FurnitureTemplate | null;
+  onPlaceDraggingTemplate: () => void;
 }
 
 type DragCtx =
@@ -37,13 +39,14 @@ type DragCtx =
 const VERTEX_HIT_PX = 9;
 const WALL_HIT_PX = 20;
 
-export function Canvas({ mode, state, dispatch, library }: CanvasProps) {
+export function Canvas({ mode, state, dispatch, library, draggingTemplate, onPlaceDraggingTemplate }: CanvasProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const bgRef = useRef<SVGRectElement | null>(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [view, setView] = useState<View>({ x: -2, y: -2, scale: DEFAULT_SCALE });
   const [drawingPoints, setDrawingPoints] = useState<Point[] | null>(null);
   const [hoverPoint, setHoverPoint] = useState<Point | null>(null);
+  const [rawHoverPoint, setRawHoverPoint] = useState<Point | null>(null);
   const [hoveredWallId, setHoveredWallId] = useState<string | null>(null);
   const [hoveredFurnitureId, setHoveredFurnitureId] = useState<string | null>(null);
   const panRef = useRef<{ x0: number; y0: number; startX: number; startY: number } | null>(null);
@@ -160,10 +163,12 @@ export function Canvas({ mode, state, dispatch, library }: CanvasProps) {
   function handleSvgMouseMove(e: React.MouseEvent<SVGSVGElement>) {
     const raw = toWorld(e.clientX, e.clientY);
     setHoverPoint(snapPoint(raw, snapResolution()));
+    setRawHoverPoint(raw);
   }
 
   function handleSvgMouseLeave() {
     setHoverPoint(null);
+    setRawHoverPoint(null);
   }
 
   function handleSvgClick(e: React.MouseEvent<SVGSVGElement>) {
@@ -244,24 +249,21 @@ export function Canvas({ mode, state, dispatch, library }: CanvasProps) {
     }
   }
 
-  // ---------- drag furniture in from the library panel ----------
-  function handleSvgDragOver(e: React.DragEvent<SVGSVGElement>) {
-    if (e.dataTransfer.types.includes('application/x-furniture-template')) {
-      e.preventDefault();
-    }
-  }
-
-  function handleSvgDrop(e: React.DragEvent<SVGSVGElement>) {
-    const templateId = e.dataTransfer.getData('application/x-furniture-template');
-    if (!templateId) return;
-    e.preventDefault();
-    const template = library.find((t) => t.id === templateId);
-    if (!template) return;
+  // ---------- drag furniture in from the library panel (custom mouse drag) ----------
+  function handleSvgMouseUp(e: React.MouseEvent<SVGSVGElement>) {
+    if (!draggingTemplate) return;
     const world = toWorld(e.clientX, e.clientY);
-    const center = templateCenter(template.points);
-    const inst = { id: makeId('placed'), templateId: template.id, x: world.x - center.x, y: world.y - center.y, rotation: 0 };
+    const center = templateCenter(draggingTemplate.points);
+    const inst = {
+      id: makeId('placed'),
+      templateId: draggingTemplate.id,
+      x: world.x - center.x,
+      y: world.y - center.y,
+      rotation: 0,
+    };
     dispatch({ type: 'ADD_FURNITURE', item: inst });
     setSelectedFurnitureId(inst.id);
+    onPlaceDraggingTemplate();
   }
 
   // ---------- move/rotate furniture, edit wall vertices, select walls ----------
@@ -451,8 +453,7 @@ export function Canvas({ mode, state, dispatch, library }: CanvasProps) {
           onMouseDown={handleSvgMouseDown}
           onMouseMove={handleSvgMouseMove}
           onMouseLeave={handleSvgMouseLeave}
-          onDragOver={handleSvgDragOver}
-          onDrop={handleSvgDrop}
+          onMouseUp={handleSvgMouseUp}
         >
           <defs>
             <pattern id="gridMinor" width={MINOR_GRID_FT} height={MINOR_GRID_FT} patternUnits="userSpaceOnUse">
@@ -624,10 +625,37 @@ export function Canvas({ mode, state, dispatch, library }: CanvasProps) {
                 </g>
               );
             })}
+
+            {draggingTemplate && rawHoverPoint && (
+              <DragPreview template={draggingTemplate} cursor={rawHoverPoint} />
+            )}
           </g>
         </svg>
       )}
     </div>
+  );
+}
+
+/** True-to-scale preview of a furniture template following the cursor while
+ * it's being dragged in from the library panel — same rendering as a real
+ * placed instance (un-rotated, since a fresh drop always starts at 0°), just
+ * centered under the cursor and semi-transparent to read as "not placed yet". */
+function DragPreview({ template, cursor }: { template: FurnitureTemplate; cursor: Point }) {
+  const center = templateCenter(template.points);
+  return (
+    <g
+      transform={`translate(${cursor.x - center.x} ${cursor.y - center.y})`}
+      opacity={0.65}
+      style={{ pointerEvents: 'none' }}
+    >
+      <path
+        d={polygonPath(template.points)}
+        fill="var(--blue-100)"
+        stroke="var(--blue-600)"
+        strokeWidth={1.5}
+        vectorEffect="non-scaling-stroke"
+      />
+    </g>
   );
 }
 

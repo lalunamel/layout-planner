@@ -9,9 +9,10 @@ interface FurniturePanelProps {
   onEdit: (template: FurnitureTemplate) => void;
   onDuplicate: (id: string) => void;
   onDelete: (id: string) => void;
+  onStartDrag: (template: FurnitureTemplate, e: React.MouseEvent) => void;
 }
 
-export function FurniturePanel({ library, onNew, onEdit, onDuplicate, onDelete }: FurniturePanelProps) {
+export function FurniturePanel({ library, onNew, onEdit, onDuplicate, onDelete, onStartDrag }: FurniturePanelProps) {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -55,6 +56,7 @@ export function FurniturePanel({ library, onNew, onEdit, onDuplicate, onDelete }
               setOpenMenuId(null);
               onDelete(template.id);
             }}
+            onStartDrag={(e) => onStartDrag(template, e)}
           />
         ))}
       </div>

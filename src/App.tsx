@@ -16,6 +16,7 @@ export default function App() {
   const [spaceHeld, setSpaceHeld] = useState(false);
   const effectiveMode: CanvasMode = spaceHeld ? 'pan' : mode;
   const [editor, setEditor] = useState<EditorState>(null);
+  const [draggingTemplate, setDraggingTemplate] = useState<FurnitureTemplate | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [nameDraft, setNameDraft] = useState('');
   const [editingName, setEditingName] = useState(false);
@@ -90,6 +91,23 @@ export default function App() {
       window.removeEventListener('blur', onBlur);
     };
   }, []);
+
+  // Custom drag for placing furniture from the panel onto the canvas — not
+  // native HTML5 drag-and-drop, so we control the cursor (a plain grab/
+  // grabbing hand, no browser copy-cursor badge) and can render a true-to-
+  // scale preview of the actual shape inside Canvas's own SVG.
+  useEffect(() => {
+    if (!draggingTemplate) return;
+    document.body.style.cursor = 'grabbing';
+    function onUp() {
+      setDraggingTemplate(null);
+    }
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mouseup', onUp);
+      document.body.style.cursor = '';
+    };
+  }, [draggingTemplate]);
 
   function handleSaveFurniture(name: string, points: Point[]) {
     if (editor?.editing) {
@@ -188,13 +206,24 @@ export default function App() {
         </button>
       </div>
       <div className="body">
-        <Canvas mode={effectiveMode} state={store.planState} dispatch={store.dispatchPlan} library={store.library} />
+        <Canvas
+          mode={effectiveMode}
+          state={store.planState}
+          dispatch={store.dispatchPlan}
+          library={store.library}
+          draggingTemplate={draggingTemplate}
+          onPlaceDraggingTemplate={() => setDraggingTemplate(null)}
+        />
         <FurniturePanel
           library={store.library}
           onNew={() => setEditor({ editing: null })}
           onEdit={(template) => setEditor({ editing: template })}
           onDuplicate={store.duplicateTemplate}
           onDelete={store.deleteTemplate}
+          onStartDrag={(template, e) => {
+            e.preventDefault();
+            setDraggingTemplate(template);
+          }}
         />
       </div>
       {editor && (
