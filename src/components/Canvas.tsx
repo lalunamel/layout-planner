@@ -4,6 +4,7 @@ import type { PlanAction, PlanState } from '../store/planReducer';
 import {
   MAJOR_GRID_FT,
   MINOR_GRID_FT,
+  boundingBox,
   distance,
   makeId,
   pointsEqual,
@@ -614,6 +615,7 @@ export function Canvas({ mode, state, dispatch, library, draggingTemplate, onPla
                       strokeWidth={selected ? 2.5 : 1.5}
                       vectorEffect="non-scaling-stroke"
                     />
+                    <FurnitureLabel template={template} scale={view.scale} />
                     {selected && !isMoving && mode === 'pointer' && (
                       <RotateHandle
                         corner={corner}
@@ -640,6 +642,48 @@ export function Canvas({ mode, state, dispatch, library, draggingTemplate, onPla
  * it's being dragged in from the library panel — same rendering as a real
  * placed instance (un-rotated, since a fresh drop always starts at 0°), just
  * centered under the cursor and semi-transparent to read as "not placed yet". */
+const LABEL_FONT_SIZES = [12, 10, 8, 6];
+const AVG_CHAR_WIDTH_FACTOR = 0.58; // rough average glyph width for a sans-serif font, as a fraction of font size
+
+/** Name label centered on a placed furniture item. Runs along the shape's
+ * longer local axis (so a long table lying vertically on screen gets a
+ * vertical label, since this renders inside the same rotated group as the
+ * shape). Shrinks through a few font sizes to fit, and hides entirely if
+ * even the smallest size would overflow — better than clipped text. */
+function FurnitureLabel({ template, scale }: { template: FurnitureTemplate; scale: number }) {
+  const { width, height } = boundingBox(template.points);
+  const center = templateCenter(template.points);
+  const vertical = height > width;
+  const longAxisPx = (vertical ? height : width) * scale;
+  const shortAxisPx = (vertical ? width : height) * scale;
+  const name = template.name;
+
+  let chosenSize: number | null = null;
+  for (const size of LABEL_FONT_SIZES) {
+    if (size > shortAxisPx * 0.6) continue;
+    const estimatedWidth = name.length * size * AVG_CHAR_WIDTH_FACTOR;
+    if (estimatedWidth <= longAxisPx * 0.85) {
+      chosenSize = size;
+      break;
+    }
+  }
+  if (chosenSize === null) return null;
+
+  return (
+    <g transform={`translate(${center.x} ${center.y}) rotate(${vertical ? 90 : 0}) scale(${1 / scale})`}>
+      <text
+        textAnchor="middle"
+        dominantBaseline="middle"
+        fontSize={chosenSize}
+        fill="var(--ink-soft)"
+        style={{ pointerEvents: 'none', userSelect: 'none' }}
+      >
+        {name}
+      </text>
+    </g>
+  );
+}
+
 function DragPreview({ template, cursor }: { template: FurnitureTemplate; cursor: Point }) {
   const center = templateCenter(template.points);
   return (
