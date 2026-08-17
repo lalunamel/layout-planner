@@ -1,32 +1,30 @@
-# React + TypeScript + Vite
+# Apartment Planner
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+A web version of drawing your new apartment's floor plan on graph paper and cutting out tiny to-scale versions of furniture to see how they'll fit.
 
-Currently, two official plugins are available:
+## Original product plan
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+**Purpose:** A web version of drawing your new apartment's floor plan on graph paper and cutting out tiny to-scale versions of furniture to see how they'll fit.
 
-## React Compiler
+**Features:**
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- Create a floor plan by clicking to place wall vertices, snapped to a grid (1ft major lines, 6in sub-lines at higher zoom)
+- No separate modes — one continuous canvas. A wall tool draws walls; a pointer/select tool selects and moves anything (furniture or wall vertices) and shows the rotate handle on selected furniture. The furniture panel is always active.
+- Toolbar is icon-only (no text labels, no hint text) — undo/redo included
+- Create furniture in an independent modal editor: name field (placeholder "Couch"), same drawing tools as the main canvas, Save/Cancel — furniture is a shared library, reused across all plans
+- Furniture panel (right sidebar) lists saved items as cards: rounded corners, soft blue/white theme, name below, kebab menu (edit/delete/duplicate), bouncy hover-lift, hand cursor on hover
+- Drag-and-drop furniture from the panel onto the floor plan; click-and-drag a placed item to move it
+- Rotate furniture via a drag handle, snapping every 45°
+- Manage multiple named floor plans via a left-side slide-out drawer: plans listed vertically, a "New" button at the top, rename/delete via kebab menu
+- Scroll-wheel zoom is scoped to the canvas, not the page
+- Undo/redo for edits
+- Walls have zero-thickness geometry (no area impact) but render with a visible stroke
 
-## Expanding the Oxlint configuration
+**Technical notes:**
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+- Data persists in localStorage (plans + furniture library)
+- Built with React + TypeScript + Vite, deployed to GitHub Pages as a standard static site
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
-```
+**Not in v1 (later phases):** doors/windows, image-to-floorplan import, JSON export/import, 3D view.
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+*(Note: the tool has since evolved past this original plan in several ways — e.g. the "two modes" and "45° rotation" described above were later changed. This section is kept as-written for reference.)*
