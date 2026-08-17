@@ -1,4 +1,4 @@
-# Apartment Planner
+# Layout Planner
 
 A web version of drawing your new apartment's floor plan on graph paper and cutting out tiny to-scale versions of furniture to see how they'll fit.
 
