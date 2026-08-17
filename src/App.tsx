@@ -13,6 +13,8 @@ type EditorState = { editing: FurnitureTemplate | null } | null;
 export default function App() {
   const store = useAppStore();
   const [mode, setMode] = useState<CanvasMode>('pointer');
+  const [spaceHeld, setSpaceHeld] = useState(false);
+  const effectiveMode: CanvasMode = spaceHeld ? 'pan' : mode;
   const [editor, setEditor] = useState<EditorState>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [nameDraft, setNameDraft] = useState('');
@@ -59,6 +61,35 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [store.undo, store.redo]);
+
+  // Holding spacebar temporarily switches to Pan mode, like Figma/Photoshop —
+  // releasing it restores whichever mode was active before.
+  useEffect(() => {
+    function isTypingTarget(e: KeyboardEvent) {
+      const target = e.target as HTMLElement | null;
+      return !!target && ['INPUT', 'TEXTAREA'].includes(target.tagName);
+    }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.code !== 'Space' || isTypingTarget(e)) return;
+      e.preventDefault();
+      setSpaceHeld(true);
+    }
+    function onKeyUp(e: KeyboardEvent) {
+      if (e.code !== 'Space' || isTypingTarget(e)) return;
+      setSpaceHeld(false);
+    }
+    function onBlur() {
+      setSpaceHeld(false);
+    }
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+    window.addEventListener('blur', onBlur);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
+      window.removeEventListener('blur', onBlur);
+    };
+  }, []);
 
   function handleSaveFurniture(name: string, points: Point[]) {
     if (editor?.editing) {
@@ -109,7 +140,7 @@ export default function App() {
         )}
         <div className="spacer" />
         <button
-          className={mode === 'pointer' ? 'iconButton active' : 'iconButton'}
+          className={effectiveMode === 'pointer' ? 'iconButton active' : 'iconButton'}
           onClick={() => setMode('pointer')}
           aria-label="Pointer"
           title="Pointer"
@@ -119,7 +150,7 @@ export default function App() {
           </svg>
         </button>
         <button
-          className={mode === 'pan' ? 'iconButton active' : 'iconButton'}
+          className={effectiveMode === 'pan' ? 'iconButton active' : 'iconButton'}
           onClick={() => setMode('pan')}
           aria-label="Pan"
           title="Pan"
@@ -157,7 +188,7 @@ export default function App() {
         </button>
       </div>
       <div className="body">
-        <Canvas mode={mode} state={store.planState} dispatch={store.dispatchPlan} library={store.library} />
+        <Canvas mode={effectiveMode} state={store.planState} dispatch={store.dispatchPlan} library={store.library} />
         <FurniturePanel
           library={store.library}
           onNew={() => setEditor({ editing: null })}

@@ -45,6 +45,7 @@ export function Canvas({ mode, state, dispatch, library }: CanvasProps) {
   const [drawingPoints, setDrawingPoints] = useState<Point[] | null>(null);
   const [hoverPoint, setHoverPoint] = useState<Point | null>(null);
   const [hoveredWallId, setHoveredWallId] = useState<string | null>(null);
+  const [hoveredFurnitureId, setHoveredFurnitureId] = useState<string | null>(null);
   const panRef = useRef<{ x0: number; y0: number; startX: number; startY: number } | null>(null);
   const [isPanning, setIsPanning] = useState(false);
 
@@ -584,19 +585,31 @@ export function Canvas({ mode, state, dispatch, library }: CanvasProps) {
               const pos = liveFurniturePos && liveFurniturePos.id === inst.id ? liveFurniturePos : inst;
               const rotation = liveRotation && liveRotation.id === inst.id ? liveRotation.rotation : inst.rotation;
               const selected = selectedFurnitureId === inst.id;
+              const hovered = hoveredFurnitureId === inst.id;
               const isMoving = dragCtx?.kind === 'move-furniture' && dragCtx.id === inst.id;
               const worldCenter = { x: pos.x + center.x, y: pos.y + center.y };
+              let fill = '#fbfdff';
+              let stroke = 'var(--ink-soft)';
+              if (selected) {
+                fill = 'var(--blue-100)';
+                stroke = 'var(--blue-600)';
+              } else if (hovered) {
+                fill = 'var(--blue-50)';
+                stroke = 'var(--blue-400)';
+              }
               return (
                 <g key={inst.id}>
                   <g
                     transform={`translate(${pos.x} ${pos.y}) rotate(${rotation}, ${center.x}, ${center.y})`}
                     style={{ cursor: mode === 'pointer' ? 'grab' : undefined }}
                     onMouseDown={(e) => handleFurnitureMouseDown(e, inst.id, inst.x, inst.y)}
+                    onMouseEnter={() => setHoveredFurnitureId(inst.id)}
+                    onMouseLeave={() => setHoveredFurnitureId((cur) => (cur === inst.id ? null : cur))}
                   >
                     <path
                       d={polygonPath(template.points)}
-                      fill={selected ? 'var(--blue-100)' : '#fbfdff'}
-                      stroke={selected ? 'var(--blue-600)' : 'var(--ink-soft)'}
+                      fill={fill}
+                      stroke={stroke}
                       strokeWidth={selected ? 2.5 : 1.5}
                       vectorEffect="non-scaling-stroke"
                     />

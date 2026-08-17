@@ -51,8 +51,6 @@ export function PlansDrawer({
     }
   }, [renamingId]);
 
-  if (!open) return null;
-
   function commitRename() {
     if (renamingId && renameValue.trim()) {
       onRenamePlan(renamingId, renameValue.trim());
@@ -62,8 +60,8 @@ export function PlansDrawer({
 
   return (
     <>
-      <div className={styles.scrim} onClick={onClose} />
-      <div className={styles.drawer}>
+      <div className={`${styles.scrim} ${open ? styles.scrimOpen : ''}`} onClick={onClose} />
+      <div className={`${styles.drawer} ${open ? styles.drawerOpen : ''}`}>
         <div className={styles.header}>
           <button className={styles.hamburger} onClick={onClose} aria-label="Close layouts" title="Close layouts">
             <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
