@@ -22,7 +22,7 @@ export default function App() {
 
   useEffect(() => {
     if (store.plans.length === 0) {
-      store.createPlan('Untitled Plan');
+      store.createPlan('Untitled Layout');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [store.plans.length]);
@@ -79,7 +79,7 @@ export default function App() {
   return (
     <div className="app">
       <div className="toolbar">
-        <button className="iconButton" onClick={() => setDrawerOpen(true)} aria-label="My Plans" title="My Plans">
+        <button className="iconButton" onClick={() => setDrawerOpen(true)} aria-label="Layouts" title="Layouts">
           <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
             <path d="M4 6h16M4 12h16M4 18h16" strokeLinecap="round" />
           </svg>
@@ -177,7 +177,7 @@ export default function App() {
         onOpenPlan={store.openPlan}
         onNewPlan={() => {
           focusNameOnNextPlan.current = true;
-          store.createPlan('Untitled Plan');
+          store.createPlan('Untitled Layout');
           setDrawerOpen(false);
         }}
         onRenamePlan={store.renamePlan}

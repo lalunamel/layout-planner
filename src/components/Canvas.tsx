@@ -327,7 +327,15 @@ export function Canvas({ mode, state, dispatch, library }: CanvasProps) {
         const { from, to } = liveVertexRef.current;
         dispatch({ type: 'MOVE_VERTEX', from, to });
       }
+      // The stray click (if any) fires synchronously right after this mouseup,
+      // in the same task — so clear the flag on a timeout as a safety net in
+      // case no click follows (e.g. mouseup lands back on the drag origin),
+      // which would otherwise leave it stuck and swallow the user's next
+      // legitimate click.
       suppressClickRef.current = true;
+      setTimeout(() => {
+        suppressClickRef.current = false;
+      }, 0);
       liveFurniturePosRef.current = null;
       liveRotationRef.current = null;
       liveVertexRef.current = null;
@@ -408,6 +416,10 @@ export function Canvas({ mode, state, dispatch, library }: CanvasProps) {
               const a = wallEndpoint(w.a);
               const b = wallEndpoint(w.b);
               const selected = selectedWallId === w.id;
+              const hovered = hoveredWallId === w.id;
+              let wallStroke = 'var(--wall)';
+              if (selected) wallStroke = 'var(--blue-600)';
+              else if (hovered) wallStroke = 'var(--blue-400)';
               return (
                 <g key={w.id}>
                   <line
@@ -415,7 +427,7 @@ export function Canvas({ mode, state, dispatch, library }: CanvasProps) {
                     y1={a.y}
                     x2={b.x}
                     y2={b.y}
-                    stroke={selected ? 'var(--blue-600)' : 'var(--wall)'}
+                    stroke={wallStroke}
                     strokeWidth={4}
                     strokeLinecap="square"
                     vectorEffect="non-scaling-stroke"
@@ -484,7 +496,7 @@ export function Canvas({ mode, state, dispatch, library }: CanvasProps) {
               <DimensionLabel a={hoveredWall.a} b={hoveredWall.b} scale={view.scale} color="var(--ink)" />
             )}
 
-            {showGhost && <GhostPoint point={hoverPoint!} scale={view.scale} />}
+            {showGhost && !hoveredWallId && <GhostPoint point={hoverPoint!} scale={view.scale} />}
           </g>
 
           <g>
