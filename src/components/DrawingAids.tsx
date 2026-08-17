@@ -18,7 +18,10 @@ export function DimensionLabel({ a, b, scale, color }: { a: Point; b: Point; sca
   const height = 18;
   const width = text.length * 6.2 + paddingX * 2;
   return (
-    <g transform={`translate(${midX} ${midY}) rotate(${angleDeg}) scale(${1 / scale})`}>
+    <g
+      transform={`translate(${midX} ${midY}) rotate(${angleDeg}) scale(${1 / scale})`}
+      style={{ pointerEvents: 'none' }}
+    >
       <g transform="translate(0 -14)">
         <rect x={-width / 2} y={-height / 2} width={width} height={height} rx={5} fill={color} />
         <text x={0} y={1} textAnchor="middle" dominantBaseline="middle" fontSize={11} fill="#fff">
