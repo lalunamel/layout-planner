@@ -108,9 +108,11 @@ export function Canvas({ mode, state, dispatch, library }: CanvasProps) {
         const target = e.target as HTMLElement | null;
         if (target && ['INPUT', 'TEXTAREA'].includes(target.tagName)) return;
         if (selectedFurnitureId) {
+          e.preventDefault();
           dispatch({ type: 'DELETE_FURNITURE', id: selectedFurnitureId });
           setSelectedFurnitureId(null);
         } else if (selectedWallId) {
+          e.preventDefault();
           dispatch({ type: 'DELETE_WALL', wallId: selectedWallId });
           setSelectedWallId(null);
         }
@@ -320,7 +322,7 @@ export function Canvas({ mode, state, dispatch, library }: CanvasProps) {
         setLiveFurniturePos(next);
       } else if (dragCtx!.kind === 'rotate-furniture') {
         const angle = (Math.atan2(world.y - dragCtx!.center.y, world.x - dragCtx!.center.x) * 180) / Math.PI + 90;
-        const next = { id: dragCtx!.id, rotation: snapAngle(angle, 45) };
+        const next = { id: dragCtx!.id, rotation: snapAngle(angle, 15) };
         liveRotationRef.current = next;
         setLiveRotation(next);
       } else if (dragCtx!.kind === 'move-vertex') {
@@ -407,10 +409,32 @@ export function Canvas({ mode, state, dispatch, library }: CanvasProps) {
 
   const drawingLastPoint = drawingPoints ? drawingPoints[drawingPoints.length - 1] : null;
   const showGhost = mode === 'pointer' && !dragCtx && hoverPoint;
-  const hoveredWall = hoveredWallId ? state.walls.find((w) => w.id === hoveredWallId) : null;
-  const showHoveredWallLabel =
-    hoveredWall && (!dragCtx || (dragCtx.kind === 'move-wall' && dragCtx.wallId === hoveredWallId));
   const svgCursor = isPanning ? 'grabbing' : mode === 'pan' ? 'grab' : undefined;
+
+  // Walls to show a live dimension label for: while dragging a wall, that
+  // wall plus every wall connected to either of its original endpoints
+  // (their lengths change too); otherwise just whichever wall is hovered.
+  const wallsToLabel: Wall[] = [];
+  if (dragCtx?.kind === 'move-wall') {
+    const dragged = state.walls.find((w) => w.id === dragCtx.wallId);
+    if (dragged) {
+      wallsToLabel.push(dragged);
+      for (const w of state.walls) {
+        if (w.id === dragCtx.wallId) continue;
+        if (
+          pointsEqual(w.a, dragCtx.originalA) ||
+          pointsEqual(w.b, dragCtx.originalA) ||
+          pointsEqual(w.a, dragCtx.originalB) ||
+          pointsEqual(w.b, dragCtx.originalB)
+        ) {
+          wallsToLabel.push(w);
+        }
+      }
+    }
+  } else if (hoveredWallId) {
+    const hovered = state.walls.find((w) => w.id === hoveredWallId);
+    if (hovered) wallsToLabel.push(hovered);
+  }
 
   return (
     <div className={styles.wrap} ref={containerRef}>
@@ -525,7 +549,7 @@ export function Canvas({ mode, state, dispatch, library }: CanvasProps) {
                     key={i}
                     cx={p.x}
                     cy={p.y}
-                    r={(i === 0 ? 6 : 4) / view.scale}
+                    r={4 / view.scale}
                     fill={i === 0 ? 'var(--blue-600)' : 'var(--blue-500)'}
                   />
                 ))}
@@ -536,14 +560,15 @@ export function Canvas({ mode, state, dispatch, library }: CanvasProps) {
               <RubberBandPreview from={drawingLastPoint} to={hoverPoint!} scale={view.scale} />
             )}
 
-            {showHoveredWallLabel && (
+            {wallsToLabel.map((w) => (
               <DimensionLabel
-                a={wallEndpoint(hoveredWall!.a)}
-                b={wallEndpoint(hoveredWall!.b)}
+                key={w.id}
+                a={wallEndpoint(w.a)}
+                b={wallEndpoint(w.b)}
                 scale={view.scale}
                 color="var(--ink)"
               />
-            )}
+            ))}
 
             {showGhost && !hoveredWallId && <GhostPoint point={hoverPoint!} scale={view.scale} />}
           </g>

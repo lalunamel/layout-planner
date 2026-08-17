@@ -181,7 +181,7 @@ export function FurnitureEditorModal({ editing, onSave, onCancel }: FurnitureEdi
                         key={i}
                         cx={p.x}
                         cy={p.y}
-                        r={(i === 0 ? 6 : 4) / view.scale}
+                        r={4 / view.scale}
                         fill={i === 0 ? 'var(--blue-600)' : 'var(--blue-500)'}
                       />
                     ))}
