@@ -681,7 +681,8 @@ function FurnitureLabel({ template, scale }: { template: FurnitureTemplate; scal
         textAnchor="middle"
         dominantBaseline="middle"
         fontSize={chosenSize}
-        fill="var(--ink-soft)"
+        fontWeight={600}
+        fill="var(--ink)"
         style={{ pointerEvents: 'none', userSelect: 'none' }}
       >
         {name}
