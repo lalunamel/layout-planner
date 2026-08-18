@@ -1,8 +1,10 @@
 import type { FloorPlan, FurnitureTemplate } from '../model/types';
+import type { View } from '../model/view';
 
 const PLANS_KEY = 'apartment-planner:plans';
 const LIBRARY_KEY = 'apartment-planner:library';
 const ACTIVE_PLAN_KEY = 'apartment-planner:activePlanId';
+const VIEW_KEY = 'apartment-planner:view';
 
 function readJson<T>(key: string, fallback: T): T {
   const raw = localStorage.getItem(key);
@@ -36,4 +38,12 @@ export function loadActivePlanId(): string | null {
 
 export function saveActivePlanId(id: string): void {
   localStorage.setItem(ACTIVE_PLAN_KEY, id);
+}
+
+export function loadView(): View | null {
+  return readJson<View | null>(VIEW_KEY, null);
+}
+
+export function saveView(view: View): void {
+  localStorage.setItem(VIEW_KEY, JSON.stringify(view));
 }

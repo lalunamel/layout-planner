@@ -16,6 +16,7 @@ import {
   uniqueVertices,
 } from '../model/geometry';
 import { clampScale, DEFAULT_SCALE, MINOR_GRID_VISIBLE_SCALE, type View } from '../model/view';
+import { loadView, saveView } from '../store/storage';
 import { DimensionLabel, GhostPoint, RubberBandPreview } from './DrawingAids';
 import styles from './Canvas.module.css';
 
@@ -44,7 +45,7 @@ export function Canvas({ mode, state, dispatch, library, draggingTemplate, onPla
   const containerRef = useRef<HTMLDivElement | null>(null);
   const bgRef = useRef<SVGRectElement | null>(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
-  const [view, setView] = useState<View>({ x: -2, y: -2, scale: DEFAULT_SCALE });
+  const [view, setView] = useState<View>(() => loadView() ?? { x: -2, y: -2, scale: DEFAULT_SCALE });
   const [drawingPoints, setDrawingPoints] = useState<Point[] | null>(null);
   const [hoverPoint, setHoverPoint] = useState<Point | null>(null);
   const [rawHoverPoint, setRawHoverPoint] = useState<Point | null>(null);
@@ -77,6 +78,11 @@ export function Canvas({ mode, state, dispatch, library, draggingTemplate, onPla
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => saveView(view), 200);
+    return () => clearTimeout(timeout);
+  }, [view]);
 
   useEffect(() => {
     const el = containerRef.current;
