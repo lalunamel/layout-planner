@@ -51,6 +51,7 @@ export function Canvas({ mode, state, dispatch, library, draggingTemplate, onPla
   const [rawHoverPoint, setRawHoverPoint] = useState<Point | null>(null);
   const [hoveredWallId, setHoveredWallId] = useState<string | null>(null);
   const [hoveredFurnitureId, setHoveredFurnitureId] = useState<string | null>(null);
+  const [rotateHandleHovered, setRotateHandleHovered] = useState(false);
   const panRef = useRef<{ x0: number; y0: number; startX: number; startY: number } | null>(null);
   const [isPanning, setIsPanning] = useState(false);
 
@@ -579,7 +580,7 @@ export function Canvas({ mode, state, dispatch, library, draggingTemplate, onPla
               />
             ))}
 
-            {showGhost && !hoveredWallId && <GhostPoint point={hoverPoint!} scale={view.scale} />}
+            {showGhost && !hoveredWallId && !rotateHandleHovered && <GhostPoint point={hoverPoint!} scale={view.scale} />}
           </g>
 
           <g>
@@ -627,6 +628,7 @@ export function Canvas({ mode, state, dispatch, library, draggingTemplate, onPla
                         corner={corner}
                         scale={view.scale}
                         onMouseDown={(e) => handleRotateMouseDown(e, inst.id, worldCenter)}
+                        onHoverChange={setRotateHandleHovered}
                       />
                     )}
                   </g>
@@ -710,30 +712,64 @@ function DragPreview({ template, cursor }: { template: FurnitureTemplate; cursor
   );
 }
 
+// Custom cursor: a rotate glyph (white halo for contrast on any background)
+// since no native CSS cursor keyword reads as "rotate".
+const ROTATE_CURSOR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24">
+  <path d="M1 4v6h6" fill="none" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" fill="none" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M1 4v6h6" fill="none" stroke="#3d6fbf" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" fill="none" stroke="#3d6fbf" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>`;
+const ROTATE_CURSOR = `url("data:image/svg+xml,${encodeURIComponent(ROTATE_CURSOR_SVG)}") 10 10, grab`;
+
 function RotateHandle({
   corner,
   scale,
   onMouseDown,
+  onHoverChange,
 }: {
   corner: Point;
   scale: number;
   onMouseDown: (e: React.MouseEvent) => void;
+  onHoverChange: (hovered: boolean) => void;
 }) {
+  const [hovered, setHovered] = useState(false);
+
+  useEffect(() => {
+    return () => onHoverChange(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function setHover(next: boolean) {
+    setHovered(next);
+    onHoverChange(next);
+  }
+
   return (
     <g transform={`translate(${corner.x} ${corner.y}) scale(${1 / scale})`}>
       <g transform="translate(10 -10)">
-        <circle r={13} fill="#fff" stroke="var(--blue-200)" strokeWidth={1.5} style={{ cursor: 'grab' }} onMouseDown={onMouseDown} />
-        <g
-          transform="translate(-8 -8) scale(0.67)"
-          stroke="var(--blue-600)"
-          strokeWidth={2.2}
-          fill="none"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          style={{ pointerEvents: 'none' }}
-        >
-          <path d="M1 4v6h6" />
-          <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+        {/* Hit target: kept at the original size regardless of the visual icon's size. */}
+        <circle
+          r={13}
+          fill="transparent"
+          style={{ cursor: ROTATE_CURSOR }}
+          onMouseDown={onMouseDown}
+          onMouseEnter={() => setHover(true)}
+          onMouseLeave={() => setHover(false)}
+        />
+        <g transform="scale(0.8)" style={{ pointerEvents: 'none' }}>
+          <circle r={13} fill={hovered ? 'var(--blue-50)' : '#fff'} stroke={hovered ? 'var(--blue-400)' : 'var(--blue-200)'} strokeWidth={1.5} />
+          <g
+            transform="translate(-8 -8) scale(0.67)"
+            stroke="var(--blue-600)"
+            strokeWidth={2.2}
+            fill="none"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M1 4v6h6" />
+            <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+          </g>
         </g>
       </g>
     </g>
