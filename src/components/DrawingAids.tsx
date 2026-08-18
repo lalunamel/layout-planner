@@ -34,7 +34,16 @@ export function DimensionLabel({ a, b, scale, color }: { a: Point; b: Point; sca
 
 /** The small dot that previews where a click will snap to next. */
 export function GhostPoint({ point, scale }: { point: Point; scale: number }) {
-  return <circle cx={point.x} cy={point.y} r={4 / scale} fill="var(--blue-500)" opacity={0.45} />;
+  return (
+    <circle
+      cx={point.x}
+      cy={point.y}
+      r={4 / scale}
+      fill="var(--blue-500)"
+      opacity={0.45}
+      style={{ pointerEvents: 'none' }}
+    />
+  );
 }
 
 /** Dashed rubber-band line from the last placed vertex to the live cursor,
@@ -52,6 +61,7 @@ export function RubberBandPreview({ from, to, scale }: { from: Point; to: Point;
         strokeDasharray="3 4"
         vectorEffect="non-scaling-stroke"
         opacity={0.7}
+        style={{ pointerEvents: 'none' }}
       />
       <DimensionLabel a={from} b={to} scale={scale} color="var(--blue-600)" />
     </>

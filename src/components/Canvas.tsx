@@ -539,7 +539,7 @@ export function Canvas({ mode, state, dispatch, library, draggingTemplate, onPla
             ))}
 
             {drawingPoints && (
-              <>
+              <g style={{ pointerEvents: 'none' }}>
                 {drawingPoints.slice(0, -1).map((p, i) => (
                   <line
                     key={i}
@@ -562,7 +562,7 @@ export function Canvas({ mode, state, dispatch, library, draggingTemplate, onPla
                     fill={i === 0 ? 'var(--blue-600)' : 'var(--blue-500)'}
                   />
                 ))}
-              </>
+              </g>
             )}
 
             {drawingLastPoint && showGhost && (
