@@ -600,6 +600,11 @@ export function Canvas({ mode, state, dispatch, library, draggingTemplate, onPla
               const hovered = hoveredFurnitureId === inst.id;
               const isMoving = dragCtx?.kind === 'move-furniture' && dragCtx.id === inst.id;
               const worldCenter = { x: pos.x + center.x, y: pos.y + center.y };
+              // Angle from center to corner, in local (unrotated) space, plus
+              // the shape's current rotation — the true on-screen direction
+              // of this corner, whatever the shape's aspect ratio or angle.
+              const cornerLocalAngle = (Math.atan2(corner.y - center.y, corner.x - center.x) * 180) / Math.PI;
+              const cornerWorldAngle = cornerLocalAngle + rotation;
               let fill = '#fbfdff';
               let stroke = 'var(--ink-soft)';
               if (selected) {
@@ -630,6 +635,7 @@ export function Canvas({ mode, state, dispatch, library, draggingTemplate, onPla
                       <RotateHandle
                         corner={corner}
                         scale={view.scale}
+                        cornerWorldAngle={cornerWorldAngle}
                         onMouseDown={(e) => handleRotateMouseDown(e, inst.id, worldCenter, rotation)}
                         onHoverChange={setRotateHandleHovered}
                       />
@@ -719,28 +725,41 @@ function DragPreview({ template, cursor }: { template: FurnitureTemplate; cursor
 // cursor change over an invisible zone at the shape's corner. The cursor is
 // a single curved arrow hooked at both ends (white halo for contrast on any
 // background), since no native CSS cursor keyword reads as "rotate".
-const ROTATE_CURSOR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 32 32">
-  <g fill="none" stroke="white" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M11 23 5 27 11 31"/>
-    <path d="M5 27C18 27 27 18 27 5"/>
-    <path d="M22 11 27 5 31 11"/>
-  </g>
-  <g fill="none" stroke="black" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M11 23 5 27 11 31"/>
-    <path d="M5 27C18 27 27 18 27 5"/>
-    <path d="M22 11 27 5 31 11"/>
+//
+// Drawn at rest, the glyph's tip-to-tip chord sits along a -45° diagonal
+// (tips at local (5,27) and (27,5)) — the direction of a square's top-right
+// corner. To keep it visually hugging whatever corner it's actually on, we
+// rotate it by (that corner's true on-screen angle from center) + 45°, which
+// cancels the glyph's own -45° bias and lines it up exactly.
+function rotateCursor(cornerWorldAngle: number): string {
+  const iconRotation = cornerWorldAngle + 45;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 32 32">
+  <g transform="rotate(${iconRotation} 16 16)">
+    <g fill="none" stroke="white" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M11 23 5 27 11 31"/>
+      <path d="M5 27C18 27 27 18 27 5"/>
+      <path d="M22 11 27 5 31 11"/>
+    </g>
+    <g fill="none" stroke="black" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M11 23 5 27 11 31"/>
+      <path d="M5 27C18 27 27 18 27 5"/>
+      <path d="M22 11 27 5 31 11"/>
+    </g>
   </g>
 </svg>`;
-const ROTATE_CURSOR = `url("data:image/svg+xml,${encodeURIComponent(ROTATE_CURSOR_SVG)}") 13 13, grab`;
+  return `url("data:image/svg+xml,${encodeURIComponent(svg)}") 13 13, grab`;
+}
 
 function RotateHandle({
   corner,
   scale,
+  cornerWorldAngle,
   onMouseDown,
   onHoverChange,
 }: {
   corner: Point;
   scale: number;
+  cornerWorldAngle: number;
   onMouseDown: (e: React.MouseEvent) => void;
   onHoverChange: (hovered: boolean) => void;
 }) {
@@ -754,7 +773,7 @@ function RotateHandle({
       <circle
         r={13}
         fill="transparent"
-        style={{ cursor: ROTATE_CURSOR }}
+        style={{ cursor: rotateCursor(cornerWorldAngle) }}
         onMouseDown={onMouseDown}
         onMouseEnter={() => onHoverChange(true)}
         onMouseLeave={() => onHoverChange(false)}
