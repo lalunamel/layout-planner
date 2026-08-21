@@ -715,30 +715,23 @@ function DragPreview({ template, cursor }: { template: FurnitureTemplate; cursor
   );
 }
 
-// Custom cursor: a rotate glyph (white halo for contrast on any background)
-// since no native CSS cursor keyword reads as "rotate".
 // Figma-style rotate affordance: no persistent on-canvas button — just a
-// cursor change (a curved double-headed arrow, white-haloed for contrast on
-// any background) over an invisible zone at the shape's corner.
-const ROTATE_CURSOR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24">
-  <g fill="none" stroke="white" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M1 4v6h6"/>
-    <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
-    <g transform="rotate(180 12 12)">
-      <path d="M1 4v6h6"/>
-      <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
-    </g>
+// cursor change over an invisible zone at the shape's corner. The cursor is
+// a single curved arrow hooked at both ends (white halo for contrast on any
+// background), since no native CSS cursor keyword reads as "rotate".
+const ROTATE_CURSOR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 32 32">
+  <g fill="none" stroke="white" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M11 23 5 27 11 31"/>
+    <path d="M5 27C18 27 27 18 27 5"/>
+    <path d="M22 11 27 5 31 11"/>
   </g>
-  <g fill="none" stroke="#3d6fbf" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M1 4v6h6"/>
-    <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
-    <g transform="rotate(180 12 12)">
-      <path d="M1 4v6h6"/>
-      <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
-    </g>
+  <g fill="none" stroke="black" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M11 23 5 27 11 31"/>
+    <path d="M5 27C18 27 27 18 27 5"/>
+    <path d="M22 11 27 5 31 11"/>
   </g>
 </svg>`;
-const ROTATE_CURSOR = `url("data:image/svg+xml,${encodeURIComponent(ROTATE_CURSOR_SVG)}") 11 11, grab`;
+const ROTATE_CURSOR = `url("data:image/svg+xml,${encodeURIComponent(ROTATE_CURSOR_SVG)}") 13 13, grab`;
 
 function RotateHandle({
   corner,
