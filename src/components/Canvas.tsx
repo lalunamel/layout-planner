@@ -33,7 +33,7 @@ interface CanvasProps {
 
 type DragCtx =
   | { kind: 'move-furniture'; id: string; offsetX: number; offsetY: number }
-  | { kind: 'rotate-furniture'; id: string; center: Point }
+  | { kind: 'rotate-furniture'; id: string; center: Point; startAngle: number; startRotation: number }
   | { kind: 'move-vertex'; from: Point }
   | { kind: 'move-wall'; wallId: string; startWorld: Point; originalA: Point; originalB: Point }
   | null;
@@ -284,10 +284,12 @@ export function Canvas({ mode, state, dispatch, library, draggingTemplate, onPla
     setDragCtx({ kind: 'move-furniture', id: instId, offsetX: instX - world.x, offsetY: instY - world.y });
   }
 
-  function handleRotateMouseDown(e: React.MouseEvent, instId: string, center: Point) {
+  function handleRotateMouseDown(e: React.MouseEvent, instId: string, center: Point, currentRotation: number) {
     if (mode !== 'pointer') return;
     e.stopPropagation();
-    setDragCtx({ kind: 'rotate-furniture', id: instId, center });
+    const world = toWorld(e.clientX, e.clientY);
+    const startAngle = (Math.atan2(world.y - center.y, world.x - center.x) * 180) / Math.PI;
+    setDragCtx({ kind: 'rotate-furniture', id: instId, center, startAngle, startRotation: currentRotation });
   }
 
   function handleVertexMouseDown(e: React.MouseEvent, vertex: Point) {
@@ -332,8 +334,9 @@ export function Canvas({ mode, state, dispatch, library, draggingTemplate, onPla
         liveFurniturePosRef.current = next;
         setLiveFurniturePos(next);
       } else if (dragCtx!.kind === 'rotate-furniture') {
-        const angle = (Math.atan2(world.y - dragCtx!.center.y, world.x - dragCtx!.center.x) * 180) / Math.PI + 90;
-        const next = { id: dragCtx!.id, rotation: snapAngle(angle, 15) };
+        const angle = (Math.atan2(world.y - dragCtx!.center.y, world.x - dragCtx!.center.x) * 180) / Math.PI;
+        const delta = angle - dragCtx!.startAngle;
+        const next = { id: dragCtx!.id, rotation: snapAngle(dragCtx!.startRotation + delta, 15) };
         liveRotationRef.current = next;
         setLiveRotation(next);
       } else if (dragCtx!.kind === 'move-vertex') {
@@ -627,7 +630,7 @@ export function Canvas({ mode, state, dispatch, library, draggingTemplate, onPla
                       <RotateHandle
                         corner={corner}
                         scale={view.scale}
-                        onMouseDown={(e) => handleRotateMouseDown(e, inst.id, worldCenter)}
+                        onMouseDown={(e) => handleRotateMouseDown(e, inst.id, worldCenter, rotation)}
                         onHoverChange={setRotateHandleHovered}
                       />
                     )}
