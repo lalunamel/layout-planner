@@ -591,20 +591,12 @@ export function Canvas({ mode, state, dispatch, library, draggingTemplate, onPla
               const template = library.find((t) => t.id === inst.templateId);
               if (!template) return null;
               const center = templateCenter(template.points);
-              const xs = template.points.map((p) => p.x);
-              const ys = template.points.map((p) => p.y);
-              const corner = { x: Math.max(...xs), y: Math.min(...ys) };
               const pos = liveFurniturePos && liveFurniturePos.id === inst.id ? liveFurniturePos : inst;
               const rotation = liveRotation && liveRotation.id === inst.id ? liveRotation.rotation : inst.rotation;
               const selected = selectedFurnitureId === inst.id;
               const hovered = hoveredFurnitureId === inst.id;
               const isMoving = dragCtx?.kind === 'move-furniture' && dragCtx.id === inst.id;
               const worldCenter = { x: pos.x + center.x, y: pos.y + center.y };
-              // Angle from center to corner, in local (unrotated) space, plus
-              // the shape's current rotation — the true on-screen direction
-              // of this corner, whatever the shape's aspect ratio or angle.
-              const cornerLocalAngle = (Math.atan2(corner.y - center.y, corner.x - center.x) * 180) / Math.PI;
-              const cornerWorldAngle = cornerLocalAngle + rotation;
               let fill = '#fbfdff';
               let stroke = 'var(--ink-soft)';
               if (selected) {
@@ -631,15 +623,27 @@ export function Canvas({ mode, state, dispatch, library, draggingTemplate, onPla
                       vectorEffect="non-scaling-stroke"
                     />
                     <FurnitureLabel template={template} scale={view.scale} />
-                    {selected && !isMoving && mode === 'pointer' && (
-                      <RotateHandle
-                        corner={corner}
-                        scale={view.scale}
-                        cornerWorldAngle={cornerWorldAngle}
-                        onMouseDown={(e) => handleRotateMouseDown(e, inst.id, worldCenter, rotation)}
-                        onHoverChange={setRotateHandleHovered}
-                      />
-                    )}
+                    {selected &&
+                      !isMoving &&
+                      mode === 'pointer' &&
+                      template.points.map((vertex, i) => {
+                        // Angle from center to this vertex, in local
+                        // (unrotated) space, plus the shape's current
+                        // rotation — the true on-screen direction of this
+                        // vertex, whatever the shape's aspect ratio or angle.
+                        const localAngle = (Math.atan2(vertex.y - center.y, vertex.x - center.x) * 180) / Math.PI;
+                        const worldAngle = localAngle + rotation;
+                        return (
+                          <RotateHandle
+                            key={i}
+                            corner={vertex}
+                            scale={view.scale}
+                            cornerWorldAngle={worldAngle}
+                            onMouseDown={(e) => handleRotateMouseDown(e, inst.id, worldCenter, rotation)}
+                            onHoverChange={setRotateHandleHovered}
+                          />
+                        );
+                      })}
                   </g>
                 </g>
               );
