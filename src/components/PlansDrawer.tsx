@@ -63,12 +63,12 @@ export function PlansDrawer({
       <div className={`${styles.scrim} ${open ? styles.scrimOpen : ''}`} onClick={onClose} />
       <div className={`${styles.drawer} ${open ? styles.drawerOpen : ''}`}>
         <div className={styles.header}>
-          <button className={styles.hamburger} onClick={onClose} aria-label="Close layouts" title="Close layouts">
+          <button className={styles.hamburger} onClick={onClose} aria-label="Close floor plans" title="Close floor plans">
             <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
               <path d="M4 6h16M4 12h16M4 18h16" strokeLinecap="round" />
             </svg>
           </button>
-          <h2>Layouts</h2>
+          <h2>Floor Plans</h2>
         </div>
         <div className={styles.list}>
           <button className={styles.newItem} onClick={onNewPlan}>
@@ -111,7 +111,7 @@ export function PlansDrawer({
                     e.stopPropagation();
                     setOpenMenuId((cur) => (cur === plan.id ? null : plan.id));
                   }}
-                  aria-label="Layout options"
+                  aria-label="Floor plan options"
                 >
                   &#8942;
                 </button>
