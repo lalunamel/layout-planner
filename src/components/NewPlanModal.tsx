@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { importImageFile, NOT_AN_IMAGE, type ImportedImage } from '../model/imageImport';
+import { importImageFile, NOT_AN_IMAGE, UNREADABLE_FILE_TITLE, type ImportedImage } from '../model/imageImport';
 import type { Rect } from '../model/underlay';
 import { CalibrationPanel } from './calibration/CalibrationPanel';
 import calibrationStyles from './calibration/Calibration.module.css';
@@ -39,7 +39,7 @@ export function NewPlanModal({ onCreateManual, onCreateFromImage, onCancel }: Ne
     try {
       setImage(await importImageFile(file));
     } catch {
-      setError(NOT_AN_IMAGE);
+      setError(`${UNREADABLE_FILE_TITLE}. ${NOT_AN_IMAGE}`);
     }
     busyRef.current = false;
     setBusy(false);

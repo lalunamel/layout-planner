@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { importImageFile, loadImageSize, NOT_AN_IMAGE, type ImportedImage } from './model/imageImport';
+import { importImageFile, loadImageSize, NOT_AN_IMAGE, UNREADABLE_FILE_TITLE, type ImportedImage } from './model/imageImport';
 import type { FurnitureTemplate, Point, Underlay } from './model/types';
 import { imageRectToWorld, underlayFromScale, underlayRect, type Rect, type Size } from './model/underlay';
 import { makeId } from './model/geometry';
@@ -318,7 +318,7 @@ export default function App() {
       {furnitureEditorOpen && (
         <FurnitureEditorModal onSave={handleSaveFurniture} onCancel={() => setFurnitureEditorOpen(false)} />
       )}
-      {notice && <NoticeModal title="Couldn’t use that file" message={notice} onClose={() => setNotice(null)} />}
+      {notice && <NoticeModal title={UNREADABLE_FILE_TITLE} message={notice} onClose={() => setNotice(null)} />}
       {confirmRequest && <ConfirmModal request={confirmRequest} onClose={() => setConfirmRequest(null)} />}
       {calibration && (
         <CalibrationModal

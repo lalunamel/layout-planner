@@ -1,6 +1,7 @@
 import { fitWithin, MAX_IMAGE_SIDE_PX, type Size } from './underlay';
 
-export const NOT_AN_IMAGE = "That file isn't an image this browser can read";
+export const UNREADABLE_FILE_TITLE = 'Unable to read file';
+export const NOT_AN_IMAGE = 'Please upload an image file instead';
 
 export interface ImportedImage {
   dataUrl: string;
