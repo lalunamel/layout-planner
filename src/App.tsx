@@ -213,6 +213,11 @@ export default function App() {
           library={store.library}
           draggingTemplate={draggingTemplate}
           onPlaceDraggingTemplate={() => setDraggingTemplate(null)}
+          underlay={
+            store.underlayImage && store.activePlanMeta?.underlay
+              ? { src: store.underlayImage, rect: store.activePlanMeta.underlay }
+              : null
+          }
         />
         <FurniturePanel
           library={store.library}

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { FurnitureTemplate, Point, Wall } from '../model/types';
+import type { FurnitureTemplate, Point, Underlay, Wall } from '../model/types';
 import type { PlanAction, PlanState } from '../store/planReducer';
 import {
   MAJOR_GRID_FT,
@@ -18,6 +18,7 @@ import {
 import { clampScale, DEFAULT_SCALE, MINOR_GRID_VISIBLE_SCALE, type View } from '../model/view';
 import { loadView, saveView } from '../store/storage';
 import { DimensionLabel, GhostPoint, RubberBandPreview } from './DrawingAids';
+import { UnderlayImage } from './UnderlayImage';
 import styles from './Canvas.module.css';
 
 export type CanvasMode = 'pointer' | 'pan';
@@ -29,6 +30,7 @@ interface CanvasProps {
   library: FurnitureTemplate[];
   draggingTemplate: FurnitureTemplate | null;
   onPlaceDraggingTemplate: () => void;
+  underlay: { src: string; rect: Underlay } | null;
 }
 
 type DragCtx =
@@ -40,8 +42,17 @@ type DragCtx =
 
 const VERTEX_HIT_PX = 9;
 const WALL_HIT_PX = 20;
+const LOCKED_UNDERLAY_OPACITY = 0.55;
 
-export function Canvas({ mode, state, dispatch, library, draggingTemplate, onPlaceDraggingTemplate }: CanvasProps) {
+export function Canvas({
+  mode,
+  state,
+  dispatch,
+  library,
+  draggingTemplate,
+  onPlaceDraggingTemplate,
+  underlay,
+}: CanvasProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const bgRef = useRef<SVGRectElement | null>(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
@@ -489,6 +500,8 @@ export function Canvas({ mode, state, dispatch, library, draggingTemplate, onPla
               />
             </pattern>
           </defs>
+
+          {underlay && <UnderlayImage src={underlay.src} underlay={underlay.rect} opacity={LOCKED_UNDERLAY_OPACITY} />}
 
           <rect ref={bgRef} x={view.x} y={view.y} width={vw} height={vh} fill="url(#gridMajor)" />
 
