@@ -70,16 +70,11 @@
   padding: 10px;
   cursor: grab;
   position: relative;
-  transition:
-    transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1),
-    box-shadow 0.18s ease,
-    border-color 0.18s ease;
 }
 
 .card:hover {
   border-color: var(--blue-200);
   box-shadow: var(--shadow-card-hover);
-  transform: translateY(-2px);
 }
 
 .card:active {
@@ -110,10 +105,9 @@
   height: 24px;
   padding: 0;
   border-radius: 6px;
-  border: none;
+  border: 1px solid var(--paper-grid-major);
   background: #fff;
   color: var(--ink-soft);
-  box-shadow: var(--shadow);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -129,5 +123,6 @@
 
 .deleteButton:hover {
   background: #fdecea;
+  border-color: #f5c6c0;
   color: var(--danger);
 }
