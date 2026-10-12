@@ -47,3 +47,24 @@ export function loadView(): View | null {
 export function saveView(view: View): void {
   localStorage.setItem(VIEW_KEY, JSON.stringify(view));
 }
+
+const UNDERLAY_KEY_PREFIX = 'apartment-planner:underlay:';
+
+export function loadUnderlayImage(planId: string): string | null {
+  return localStorage.getItem(UNDERLAY_KEY_PREFIX + planId);
+}
+
+/** Returns false (leaving any previous image in place) when the browser
+ * refuses the write, e.g. because localStorage is full. */
+export function saveUnderlayImage(planId: string, dataUrl: string): boolean {
+  try {
+    localStorage.setItem(UNDERLAY_KEY_PREFIX + planId, dataUrl);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function deleteUnderlayImage(planId: string): void {
+  localStorage.removeItem(UNDERLAY_KEY_PREFIX + planId);
+}

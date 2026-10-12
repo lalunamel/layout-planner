@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { FloorPlan, FurnitureTemplate } from '../model/types';
+import type { FloorPlan, FurnitureTemplate, Underlay } from '../model/types';
 import { makeId } from '../model/geometry';
 import * as storage from './storage';
 import { usePlanHistory } from './usePlanHistory';
@@ -17,6 +17,14 @@ export function useAppStore() {
     if (saved && loaded.some((p) => p.id === saved)) return saved;
     return loaded[0]?.id ?? null;
   });
+
+  const [underlayImage, setUnderlayImageState] = useState<string | null>(() =>
+    activePlanId ? storage.loadUnderlayImage(activePlanId) : null,
+  );
+
+  useEffect(() => {
+    setUnderlayImageState(activePlanId ? storage.loadUnderlayImage(activePlanId) : null);
+  }, [activePlanId]);
 
   const activePlanMeta = useMemo(
     () => plans.find((p) => p.id === activePlanId) ?? null,
@@ -62,8 +70,9 @@ export function useAppStore() {
     storage.saveLibrary(library);
   }, [library]);
 
-  const createPlan = useCallback((name: string) => {
+  const createPlan = useCallback((name: string, imageDataUrl?: string): FloorPlan | null => {
     const plan = seedPlan(name);
+    if (imageDataUrl !== undefined && !storage.saveUnderlayImage(plan.id, imageDataUrl)) return null;
     setPlans((prev) => {
       const next = [plan, ...prev];
       storage.savePlans(next);
@@ -83,6 +92,7 @@ export function useAppStore() {
 
   const deletePlan = useCallback(
     (id: string) => {
+      storage.deleteUnderlayImage(id);
       setPlans((prev) => {
         const next = prev.filter((p) => p.id !== id);
         storage.savePlans(next);
@@ -94,6 +104,29 @@ export function useAppStore() {
   );
 
   const openPlan = useCallback((id: string) => setActivePlanId(id), []);
+
+  const setUnderlayImage = useCallback(
+    (planId: string, dataUrl: string | null): boolean => {
+      if (dataUrl === null) {
+        storage.deleteUnderlayImage(planId);
+      } else if (!storage.saveUnderlayImage(planId, dataUrl)) {
+        return false;
+      }
+      if (planId === activePlanId) setUnderlayImageState(dataUrl);
+      return true;
+    },
+    [activePlanId],
+  );
+
+  const setUnderlay = useCallback((planId: string, underlay: Underlay | undefined) => {
+    setPlans((prev) => {
+      const next = prev.map((p) =>
+        p.id === planId ? { ...p, underlay, updatedAt: new Date().toISOString() } : p,
+      );
+      storage.savePlans(next);
+      return next;
+    });
+  }, []);
 
   const addTemplate = useCallback((template: FurnitureTemplate) => {
     setLibrary((prev) => [...prev, template]);
@@ -130,6 +163,9 @@ export function useAppStore() {
     renamePlan,
     deletePlan,
     openPlan,
+    underlayImage,
+    setUnderlayImage,
+    setUnderlay,
     addTemplate,
     updateTemplate,
     duplicateTemplate,
