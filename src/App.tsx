@@ -298,8 +298,6 @@ export default function App() {
         <FurniturePanel
           library={store.library}
           onNew={() => setEditor({ editing: null })}
-          onEdit={(template) => setEditor({ editing: template })}
-          onDuplicate={store.duplicateTemplate}
           onDelete={store.deleteTemplate}
           onStartDrag={(template, e) => {
             if (noPlans) return;

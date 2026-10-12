@@ -4,23 +4,11 @@ import styles from './FurniturePanel.module.css';
 
 interface FurnitureCardProps {
   template: FurnitureTemplate;
-  onEdit: () => void;
-  onDuplicate: () => void;
   onDelete: () => void;
-  menuOpen: boolean;
-  onToggleMenu: () => void;
   onStartDrag: (e: React.MouseEvent) => void;
 }
 
-export function FurnitureCard({
-  template,
-  onEdit,
-  onDuplicate,
-  onDelete,
-  menuOpen,
-  onToggleMenu,
-  onStartDrag,
-}: FurnitureCardProps) {
+export function FurnitureCard({ template, onDelete, onStartDrag }: FurnitureCardProps) {
   const { width, height } = boundingBox(template.points);
   const xs = template.points.map((p) => p.x);
   const ys = template.points.map((p) => p.y);
@@ -30,27 +18,18 @@ export function FurnitureCard({
 
   return (
     <div className={styles.card} onMouseDown={onStartDrag}>
-      <div className={styles.kebabWrap} data-kebab onMouseDown={(e) => e.stopPropagation()}>
-        <button
-          className={styles.kebab}
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggleMenu();
-          }}
-          aria-label="Furniture options"
-        >
-          &#8942;
-        </button>
-        {menuOpen && (
-          <div className={styles.menu} data-kebab>
-            <button onClick={onEdit}>Edit</button>
-            <button onClick={onDuplicate}>Duplicate</button>
-            <button className={styles.danger} onClick={onDelete}>
-              Delete
-            </button>
-          </div>
-        )}
-      </div>
+      <button
+        className={styles.deleteButton}
+        aria-label={`Delete ${template.name}`}
+        title="Delete"
+        // Keep the card's drag-to-place from starting.
+        onMouseDown={(e) => e.stopPropagation()}
+        onClick={onDelete}
+      >
+        <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+          <path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
       <div className={styles.swatch}>
         <svg
           width={70}

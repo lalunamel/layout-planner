@@ -136,14 +136,6 @@ export function useAppStore() {
     setLibrary((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)));
   }, []);
 
-  const duplicateTemplate = useCallback((id: string) => {
-    setLibrary((prev) => {
-      const original = prev.find((t) => t.id === id);
-      if (!original) return prev;
-      return [...prev, { ...original, id: makeId('furniture'), name: `${original.name} copy` }];
-    });
-  }, []);
-
   const deleteTemplate = useCallback((id: string) => {
     setLibrary((prev) => prev.filter((t) => t.id !== id));
   }, []);
@@ -168,7 +160,6 @@ export function useAppStore() {
     setUnderlay,
     addTemplate,
     updateTemplate,
-    duplicateTemplate,
     deleteTemplate,
   };
 }
