@@ -1,8 +1,12 @@
 .scaleBar {
   position: absolute;
-  left: 12px;
+  right: 12px;
   bottom: 12px;
-  padding: 6px 10px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 5px 10px 7px;
   background: rgba(255, 255, 255, 0.88);
   border: 1px solid var(--paper-grid-major);
   border-radius: 8px;
@@ -12,13 +16,9 @@
   z-index: 5;
 }
 
-.labels {
-  display: flex;
-  justify-content: space-between;
-  margin: 0 -4px 3px 0;
+.label {
   font-size: 11px;
   font-weight: 600;
-  color: var(--ink-soft);
+  color: var(--ink);
   font-variant-numeric: tabular-nums;
-  white-space: nowrap;
 }

@@ -6,7 +6,8 @@ export const DEFAULT_PLAN_NAME = 'Untitled Floor Plan';
 interface NewPlanModalProps {
   onCreateManual: (name: string) => void;
   onUpload: (name: string, file: File) => Promise<string | null>;
-  onCancel: () => void;
+  /** Omitted for the empty state: with no plans there's nothing to go back to. */
+  onCancel?: () => void;
 }
 
 export function NewPlanModal({ onCreateManual, onUpload, onCancel }: NewPlanModalProps) {
@@ -33,7 +34,7 @@ export function NewPlanModal({ onCreateManual, onUpload, onCancel }: NewPlanModa
   }
 
   function close() {
-    if (!busyRef.current) onCancel();
+    if (!busyRef.current) onCancel?.();
   }
 
   function createManual() {
@@ -72,9 +73,11 @@ export function NewPlanModal({ onCreateManual, onUpload, onCancel }: NewPlanModa
   return (
     <div className={styles.scrim} onMouseDown={(e) => e.target === e.currentTarget && close()}>
       <div className={styles.panel} role="dialog" aria-label="New floor plan">
-        <button className={styles.close} onClick={close} aria-label="Close" title="Close">
-          ×
-        </button>
+        {onCancel && (
+          <button className={styles.close} onClick={close} aria-label="Close" title="Close">
+            ×
+          </button>
+        )}
         <input
           ref={titleRef}
           className={styles.title}

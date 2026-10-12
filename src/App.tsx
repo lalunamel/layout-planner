@@ -8,7 +8,7 @@ import { Canvas, type CanvasMode } from './components/Canvas';
 import { FurniturePanel } from './components/FurniturePanel';
 import { FurnitureEditorModal } from './components/FurnitureEditorModal';
 import { PlansDrawer } from './components/PlansDrawer';
-import { DEFAULT_PLAN_NAME, NewPlanModal } from './components/NewPlanModal';
+import { NewPlanModal } from './components/NewPlanModal';
 import { UnderlayButton } from './components/UnderlayButton';
 import './App.css';
 
@@ -32,12 +32,8 @@ export default function App() {
   const [calibration, dispatchCalibration] = useReducer(calibrationReducer, null);
   const calibrating = calibration !== null;
 
-  useEffect(() => {
-    if (store.plans.length === 0) {
-      store.createPlan(DEFAULT_PLAN_NAME);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [store.plans.length]);
+  // With no plans at all, the new-plan modal is the empty state.
+  const noPlans = store.plans.length === 0;
 
   useEffect(() => {
     if (editingName) {
@@ -274,7 +270,7 @@ export default function App() {
         </button>
         <UnderlayButton
           hasImage={!!(store.underlayImage && store.activePlanMeta?.underlay)}
-          disabled={calibrating}
+          disabled={calibrating || noPlans}
           onAddFile={handleAddOrReplaceFile}
           onRecalibrate={handleRecalibrate}
           onReplaceFile={handleAddOrReplaceFile}
@@ -335,7 +331,7 @@ export default function App() {
           onDuplicate={store.duplicateTemplate}
           onDelete={store.deleteTemplate}
           onStartDrag={(template, e) => {
-            if (calibrating) return;
+            if (calibrating || noPlans) return;
             e.preventDefault();
             setDraggingTemplate(template);
           }}
@@ -344,11 +340,11 @@ export default function App() {
       {editor && (
         <FurnitureEditorModal editing={editor.editing} onSave={handleSaveFurniture} onCancel={() => setEditor(null)} />
       )}
-      {newPlanOpen && (
+      {(newPlanOpen || noPlans) && (
         <NewPlanModal
           onCreateManual={handleCreateManual}
           onUpload={handleUploadNewPlan}
-          onCancel={() => setNewPlanOpen(false)}
+          onCancel={noPlans ? undefined : () => setNewPlanOpen(false)}
         />
       )}
       <PlansDrawer
@@ -362,7 +358,11 @@ export default function App() {
           setNewPlanOpen(true);
         }}
         onRenamePlan={store.renamePlan}
-        onDeletePlan={store.deletePlan}
+        onDeletePlan={(id) => {
+          // Deleting the last plan leaves only the empty state; don't keep the drawer over it.
+          if (store.plans.length === 1) setDrawerOpen(false);
+          store.deletePlan(id);
+        }}
       />
     </div>
   );

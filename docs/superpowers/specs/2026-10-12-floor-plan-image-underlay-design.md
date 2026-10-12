@@ -31,7 +31,7 @@
 - A non-image or unreadable file shows an inline error on the upload card; the modal stays open.
 - Esc, backdrop click, or × closes the modal without creating a plan.
 - Visual style matches the existing furniture editor modal.
-- First launch (zero plans) keeps today's behavior: a blank "Untitled Floor Plan" is created silently, with no modal.
+- With zero plans (first launch, or after deleting the last plan) the modal is the empty state: it opens automatically and can't be dismissed (no ×, Esc or backdrop close). No plan is ever auto-created.
 
 ## 2. Calibration mode
 
