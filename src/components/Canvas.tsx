@@ -35,6 +35,9 @@ interface CanvasProps {
   underlay: { src: string; rect: Underlay } | null;
   /** Each new request (by id) zooms the view to fit `rect`. */
   fitRequest: { id: number; rect: Rect } | null;
+  /** False on plans with a floor plan image: clicks only select and move,
+   * so placing walls can't get in the way of arranging furniture. */
+  allowWallDrawing: boolean;
 }
 
 type DragCtx =
@@ -57,6 +60,7 @@ export function Canvas({
   onPlaceDraggingTemplate,
   underlay,
   fitRequest,
+  allowWallDrawing,
 }: CanvasProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const bgRef = useRef<SVGRectElement | null>(null);
@@ -156,6 +160,10 @@ export function Canvas({
     setSelectedWallId(null);
   }, [mode]);
 
+  useEffect(() => {
+    if (!allowWallDrawing) setDrawingPoints(null);
+  }, [allowWallDrawing]);
+
   const sizeRef = useRef(size);
   sizeRef.current = size;
   useEffect(() => {
@@ -208,7 +216,7 @@ export function Canvas({
       suppressClickRef.current = false;
       return;
     }
-    if (mode !== 'pointer') return;
+    if (mode !== 'pointer' || !allowWallDrawing) return;
     if (!isBackgroundTarget(e)) return;
     const raw = toWorld(e.clientX, e.clientY);
     const pt = snapPoint(raw, snapResolution());
@@ -446,7 +454,7 @@ export function Canvas({
   }
 
   const drawingLastPoint = drawingPoints ? drawingPoints[drawingPoints.length - 1] : null;
-  const showGhost = mode === 'pointer' && !dragCtx && hoverPoint;
+  const showGhost = mode === 'pointer' && allowWallDrawing && !dragCtx && hoverPoint;
   const svgCursor = isPanning ? 'grabbing' : mode === 'pan' ? 'grab' : undefined;
 
   // Walls to show a live dimension label for: while dragging a wall, that
