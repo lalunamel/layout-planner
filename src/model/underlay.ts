@@ -36,7 +36,6 @@ export interface RealSize {
 }
 
 export const MAX_IMAGE_SIDE_PX = 2000;
-const FIT_FRACTION = 0.8;
 
 export function fitWithin(size: Size, maxSide: number): Size {
   const longest = Math.max(size.width, size.height);
@@ -62,17 +61,8 @@ export function normalizeRect(a: Point, b: Point): Rect {
   };
 }
 
-export function pointInRect(p: Point, r: Rect): boolean {
-  return p.x >= r.x && p.x <= r.x + r.width && p.y >= r.y && p.y <= r.y + r.height;
-}
-
 function feetPerPixel(u: Underlay, natural: Size): number {
   return u.widthFt / natural.width;
-}
-
-export function worldRectToImage(u: Underlay, natural: Size, r: Rect): Rect {
-  const k = feetPerPixel(u, natural);
-  return { x: (r.x - u.x) / k, y: (r.y - u.y) / k, width: r.width / k, height: r.height / k };
 }
 
 export function imageRectToWorld(u: Underlay, natural: Size, r: Rect): Rect {
@@ -80,31 +70,23 @@ export function imageRectToWorld(u: Underlay, natural: Size, r: Rect): Rect {
   return { x: u.x + r.x * k, y: u.y + r.y * k, width: r.width * k, height: r.height * k };
 }
 
-/** Initial placement for a freshly imported image: as large as fits in 80%
- * of the visible area, centered. */
-export function fitUnderlayToView(view: Rect, natural: Size): Underlay {
-  const aspect = natural.height / natural.width;
-  const widthFt = Math.min(view.width * FIT_FRACTION, (view.height * FIT_FRACTION) / aspect);
-  const heightFt = widthFt * aspect;
-  return {
-    x: view.x + (view.width - widthFt) / 2,
-    y: view.y + (view.height - heightFt) / 2,
-    widthFt,
-  };
+/** Feet per image pixel implied by a box (image px) whose real size is
+ * `real`. With both sides given, the two per-axis scales are averaged.
+ * Returns null when no given side has length in the box. */
+export function scaleFromMeasurement(boxPx: Rect, real: RealSize): number | null {
+  const scales: number[] = [];
+  if (real.width !== null && boxPx.width > 0) scales.push(real.width / boxPx.width);
+  if (real.height !== null && boxPx.height > 0) scales.push(real.height / boxPx.height);
+  if (scales.length === 0) return null;
+  return scales.reduce((sum, s) => sum + s, 0) / scales.length;
 }
 
-/** Rescale the image so `box` (world feet, drawn over the current
- * placement) becomes `real` feet, then shift it so the box's top-left lands
- * on the nearest grid intersection. With both sides given, the two
- * per-axis scales are averaged. Returns null when no usable side exists. */
-export function measureUnderlay(u: Underlay, natural: Size, box: Rect, real: RealSize): Underlay | null {
-  const px = worldRectToImage(u, natural, box);
-  const scales: number[] = [];
-  if (real.width !== null && px.width > 0) scales.push(real.width / px.width);
-  if (real.height !== null && px.height > 0) scales.push(real.height / px.height);
-  if (scales.length === 0) return null;
-  const k = scales.reduce((sum, s) => sum + s, 0) / scales.length;
-  const anchorX = snap(box.x, MAJOR_GRID_FT);
-  const anchorY = snap(box.y, MAJOR_GRID_FT);
-  return { x: anchorX - px.x * k, y: anchorY - px.y * k, widthFt: natural.width * k };
+/** Place an image at `ftPerPx` so the measured box's top-left lands on the
+ * grid intersection nearest `anchor` (world feet). */
+export function underlayFromScale(natural: Size, boxPx: Rect, ftPerPx: number, anchor: Point): Underlay {
+  return {
+    x: snap(anchor.x, MAJOR_GRID_FT) - boxPx.x * ftPerPx,
+    y: snap(anchor.y, MAJOR_GRID_FT) - boxPx.y * ftPerPx,
+    widthFt: natural.width * ftPerPx,
+  };
 }

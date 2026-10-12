@@ -15,15 +15,12 @@ import {
   templateCenter,
   uniqueVertices,
 } from '../model/geometry';
-import { clampScale, DEFAULT_SCALE, MINOR_GRID_VISIBLE_SCALE, type View } from '../model/view';
+import { clampScale, DEFAULT_SCALE, fitView, MINOR_GRID_VISIBLE_SCALE, type View } from '../model/view';
 import { loadView, saveView } from '../store/storage';
 import { DimensionLabel, GhostPoint, RubberBandPreview } from './DrawingAids';
 import { UnderlayImage } from './UnderlayImage';
 import { ScaleBar } from './ScaleBar';
-import { imageRectToWorld } from '../model/underlay';
-import type { CalibrationAction, CalibrationSession } from '../model/calibration';
-import { CalibrationOverlay } from './calibration/CalibrationOverlay';
-import { CalibrationHud } from './calibration/CalibrationHud';
+import type { Rect } from '../model/underlay';
 import styles from './Canvas.module.css';
 
 export type CanvasMode = 'pointer' | 'pan';
@@ -36,12 +33,8 @@ interface CanvasProps {
   draggingTemplate: FurnitureTemplate | null;
   onPlaceDraggingTemplate: () => void;
   underlay: { src: string; rect: Underlay } | null;
-  calibration: {
-    session: CalibrationSession;
-    dispatch: (action: CalibrationAction) => void;
-    onDone: () => void;
-    onCancel: () => void;
-  } | null;
+  /** Each new request (by id) zooms the view to fit `rect`. */
+  fitRequest: { id: number; rect: Rect } | null;
 }
 
 type DragCtx =
@@ -63,7 +56,7 @@ export function Canvas({
   draggingTemplate,
   onPlaceDraggingTemplate,
   underlay,
-  calibration,
+  fitRequest,
 }: CanvasProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const bgRef = useRef<SVGRectElement | null>(null);
@@ -90,8 +83,6 @@ export function Canvas({
     previewA: Point;
     previewB: Point;
   } | null>(null);
-
-  const calibrating = calibration !== null;
 
   useEffect(() => {
     const el = containerRef.current;
@@ -142,7 +133,6 @@ export function Canvas({
         setSelectedWallId(null);
       }
       if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (calibrating) return;
         const target = e.target as HTMLElement | null;
         if (target && ['INPUT', 'TEXTAREA'].includes(target.tagName)) return;
         if (selectedFurnitureId) {
@@ -158,7 +148,7 @@ export function Canvas({
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [selectedFurnitureId, selectedWallId, dispatch, calibrating]);
+  }, [selectedFurnitureId, selectedWallId, dispatch]);
 
   useEffect(() => {
     setDrawingPoints(null);
@@ -166,32 +156,13 @@ export function Canvas({
     setSelectedWallId(null);
   }, [mode]);
 
+  const sizeRef = useRef(size);
+  sizeRef.current = size;
   useEffect(() => {
-    if (!calibrating) return;
-    setDrawingPoints(null);
-    setSelectedFurnitureId(null);
-    setSelectedWallId(null);
-  }, [calibrating]);
-
-  // Applying a measurement rescales the image in world feet, often by a lot.
-  // Rescale the view to match, so the measured box stays exactly where the
-  // user drew it on screen and the grid changes scale around it instead.
-  const session = calibration?.session ?? null;
-  const prevSessionRef = useRef<CalibrationSession | null>(null);
-  useEffect(() => {
-    const prev = prevSessionRef.current;
-    prevSessionRef.current = session;
-    const before = prev?.pendingBox;
-    if (!before || !session?.draft || !session.measuredBoxPx || session.measuredBoxPx === prev.measuredBoxPx) return;
-    const after = imageRectToWorld(session.draft, session.natural, session.measuredBoxPx);
-    setView((v) => {
-      const ratio = after.width > 0 ? before.width / after.width : before.height / after.height;
-      const scale = clampScale(v.scale * ratio);
-      const left = (before.x - v.x) * v.scale;
-      const top = (before.y - v.y) * v.scale;
-      return { x: after.x - left / scale, y: after.y - top / scale, scale };
-    });
-  }, [session]);
+    if (!fitRequest || sizeRef.current.width === 0) return;
+    setView(fitView(fitRequest.rect, sizeRef.current, clampScale));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fitRequest?.id]);
 
   function snapResolution(): number {
     return view.scale >= MINOR_GRID_VISIBLE_SCALE ? MINOR_GRID_FT : MAJOR_GRID_FT;
@@ -203,10 +174,6 @@ export function Canvas({
       x: view.x + (clientX - rect.left) / view.scale,
       y: view.y + (clientY - rect.top) / view.scale,
     };
-  }
-
-  function worldToScreen(p: Point): { left: number; top: number } {
-    return { left: (p.x - view.x) * view.scale, top: (p.y - view.y) * view.scale };
   }
 
   function isBackgroundTarget(e: React.SyntheticEvent): boolean {
@@ -241,7 +208,6 @@ export function Canvas({
       suppressClickRef.current = false;
       return;
     }
-    if (calibrating) return;
     if (mode !== 'pointer') return;
     if (!isBackgroundTarget(e)) return;
     const raw = toWorld(e.clientX, e.clientY);
@@ -317,7 +283,7 @@ export function Canvas({
 
   // ---------- drag furniture in from the library panel (custom mouse drag) ----------
   function handleSvgMouseUp(e: React.MouseEvent<SVGSVGElement>) {
-    if (!draggingTemplate || calibrating) return;
+    if (!draggingTemplate) return;
     const world = toWorld(e.clientX, e.clientY);
     const center = templateCenter(draggingTemplate.points);
     const inst = {
@@ -480,7 +446,7 @@ export function Canvas({
   }
 
   const drawingLastPoint = drawingPoints ? drawingPoints[drawingPoints.length - 1] : null;
-  const showGhost = mode === 'pointer' && !dragCtx && !calibrating && hoverPoint;
+  const showGhost = mode === 'pointer' && !dragCtx && hoverPoint;
   const svgCursor = isPanning ? 'grabbing' : mode === 'pan' ? 'grab' : undefined;
 
   // Walls to show a live dimension label for: while dragging a wall, that
@@ -548,12 +514,7 @@ export function Canvas({
             </pattern>
           </defs>
 
-          {calibration?.session.draft ? (
-            <UnderlayImage src={calibration.session.src} underlay={calibration.session.draft} opacity={1} />
-          ) : (
-            !calibration &&
-            underlay && <UnderlayImage src={underlay.src} underlay={underlay.rect} opacity={LOCKED_UNDERLAY_OPACITY} />
-          )}
+          {underlay && <UnderlayImage src={underlay.src} underlay={underlay.rect} opacity={LOCKED_UNDERLAY_OPACITY} />}
 
           <rect ref={bgRef} x={view.x} y={view.y} width={vw} height={vh} fill="url(#gridMajor)" />
 
@@ -718,30 +679,9 @@ export function Canvas({
               <DragPreview template={draggingTemplate} cursor={rawHoverPoint} />
             )}
           </g>
-
-          {calibration && (
-            <CalibrationOverlay
-              session={calibration.session}
-              dispatch={calibration.dispatch}
-              viewRect={{ x: view.x, y: view.y, width: vw, height: vh }}
-              scale={view.scale}
-              mode={mode}
-              toWorld={toWorld}
-            />
-          )}
         </svg>
       )}
       <ScaleBar scale={view.scale} />
-      {calibration && (
-        <CalibrationHud
-          session={calibration.session}
-          dispatch={calibration.dispatch}
-          worldToScreen={worldToScreen}
-          bounds={size}
-          onDone={calibration.onDone}
-          onCancel={calibration.onCancel}
-        />
-      )}
     </div>
   );
 }

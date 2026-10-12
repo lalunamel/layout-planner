@@ -1,7 +1,7 @@
-import { useEffect, useReducer, useRef, useState } from 'react';
-import { calibrationReducer, type CalibrationRestore } from './model/calibration';
-import { importImageFile, loadImageSize } from './model/imageImport';
-import type { FurnitureTemplate, Point } from './model/types';
+import { useEffect, useRef, useState } from 'react';
+import { importImageFile, loadImageSize, NOT_AN_IMAGE, type ImportedImage } from './model/imageImport';
+import type { FurnitureTemplate, Point, Underlay } from './model/types';
+import { imageRectToWorld, underlayFromScale, underlayRect, type Rect, type Size } from './model/underlay';
 import { makeId } from './model/geometry';
 import { useAppStore } from './store/useAppStore';
 import { Canvas, type CanvasMode } from './components/Canvas';
@@ -10,12 +10,16 @@ import { FurnitureEditorModal } from './components/FurnitureEditorModal';
 import { PlansDrawer } from './components/PlansDrawer';
 import { NewPlanModal } from './components/NewPlanModal';
 import { UnderlayButton } from './components/UnderlayButton';
+import { CalibrationModal } from './components/calibration/CalibrationPanel';
 import './App.css';
 
 type EditorState = { editing: FurnitureTemplate | null } | null;
 
+/** Calibrating an image for an existing plan (Add, Replace or Recalibrate).
+ * `previous` is the current placement when recalibrating the same image. */
+type CalibrationState = { planId: string; src: string; natural: Size; previous?: Underlay } | null;
+
 const STORAGE_FULL = 'Not enough browser storage for this image';
-const NOT_AN_IMAGE = "That file isn't an image this browser can read";
 
 export default function App() {
   const store = useAppStore();
@@ -29,8 +33,8 @@ export default function App() {
   const [nameDraft, setNameDraft] = useState('');
   const [editingName, setEditingName] = useState(false);
   const nameInputRef = useRef<HTMLInputElement | null>(null);
-  const [calibration, dispatchCalibration] = useReducer(calibrationReducer, null);
-  const calibrating = calibration !== null;
+  const [calibration, setCalibration] = useState<CalibrationState>(null);
+  const [fitRequest, setFitRequest] = useState<{ id: number; rect: Rect } | null>(null);
 
   // With no plans at all, the new-plan modal is the empty state.
   const noPlans = store.plans.length === 0;
@@ -48,7 +52,7 @@ export default function App() {
       if (target && ['INPUT', 'TEXTAREA'].includes(target.tagName)) return;
       const mod = e.metaKey || e.ctrlKey;
       if (!mod || e.key.toLowerCase() !== 'z') return;
-      if (calibrating) return;
+      if (calibration || newPlanOpen || noPlans) return;
       e.preventDefault();
       if (e.shiftKey) {
         store.redo();
@@ -59,7 +63,7 @@ export default function App() {
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [store.undo, store.redo, calibrating]);
+  }, [store.undo, store.redo, calibration, newPlanOpen, noPlans]);
 
   // Holding spacebar temporarily switches to Pan mode, like Figma/Photoshop —
   // releasing it restores whichever mode was active before.
@@ -116,41 +120,29 @@ export default function App() {
     setEditor(null);
   }
 
-  async function startCalibrationFromFile(planId: string, file: File, restore: CalibrationRestore): Promise<string | null> {
-    let imported;
+  async function handleAddOrReplaceFile(file: File) {
+    const planId = store.activePlanId;
+    if (!planId) return;
+    let imported: ImportedImage;
     try {
       imported = await importImageFile(file);
     } catch {
-      return NOT_AN_IMAGE;
+      window.alert(NOT_AN_IMAGE);
+      return;
     }
-    // The new image is only written on Done, so the stored image always
-    // matches the stored placement, even if the tab closes mid-calibration.
-    dispatchCalibration({ type: 'START', planId, src: imported.dataUrl, natural: imported.size, draft: null, restore });
-    return null;
-  }
-
-  function currentRestore(): CalibrationRestore {
-    return { src: store.underlayImage, underlay: store.activePlanMeta?.underlay };
-  }
-
-  async function handleAddOrReplaceFile(file: File) {
-    if (!store.activePlanId) return;
-    const error = await startCalibrationFromFile(store.activePlanId, file, currentRestore());
-    if (error) window.alert(error);
+    setCalibration({ planId, src: imported.dataUrl, natural: imported.size });
   }
 
   async function handleRecalibrate() {
     const planId = store.activePlanId;
     const src = store.underlayImage;
-    const underlay = store.activePlanMeta?.underlay;
-    if (!planId || !src || !underlay) return;
-    let natural;
+    const previous = store.activePlanMeta?.underlay;
+    if (!planId || !src || !previous) return;
     try {
-      natural = await loadImageSize(src);
+      setCalibration({ planId, src, natural: await loadImageSize(src), previous });
     } catch {
-      return;
+      // An unreadable stored image can't be recalibrated; Replace still works.
     }
-    dispatchCalibration({ type: 'START', planId, src, natural, draft: underlay, restore: { src, underlay } });
   }
 
   function handleRemoveImage() {
@@ -160,23 +152,22 @@ export default function App() {
     store.setUnderlayImage(planId, null);
   }
 
-  function handleCalibrationDone() {
-    if (!calibration) return;
-    const { planId, src, draft, restore } = calibration;
-    if (src !== restore.src && !store.setUnderlayImage(planId, src)) {
-      window.alert(STORAGE_FULL);
-      return;
-    }
-    if (draft) store.setUnderlay(planId, draft);
-    dispatchCalibration({ type: 'END' });
+  function showWholeImage(underlay: Underlay, natural: Size) {
+    setFitRequest((prev) => ({ id: (prev?.id ?? 0) + 1, rect: underlayRect(underlay, natural) }));
   }
 
-  function handleCalibrationCancel() {
-    if (!calibration) return;
-    // A brand-new plan's image was stored up front by createPlan; drop it.
-    // Add/Replace/Recalibrate wrote nothing yet, so there is nothing to undo.
-    if (calibration.restore.src === null) store.setUnderlayImage(calibration.planId, null);
-    dispatchCalibration({ type: 'END' });
+  function handleCalibrationSave(boxPx: Rect, ftPerPx: number): string | null {
+    if (!calibration) return null;
+    const { planId, src, natural, previous } = calibration;
+    // Recalibrating keeps the measured area where it already was, so furniture
+    // placed around it stays put; a new image starts at the origin.
+    const anchor = previous ? imageRectToWorld(previous, natural, boxPx) : { x: 0, y: 0 };
+    const underlay = underlayFromScale(natural, boxPx, ftPerPx, anchor);
+    if (src !== store.underlayImage && !store.setUnderlayImage(planId, src)) return STORAGE_FULL;
+    store.setUnderlay(planId, underlay);
+    showWholeImage(underlay, natural);
+    setCalibration(null);
+    return null;
   }
 
   function handleCreateManual(name: string) {
@@ -184,23 +175,12 @@ export default function App() {
     setNewPlanOpen(false);
   }
 
-  async function handleUploadNewPlan(name: string, file: File): Promise<string | null> {
-    let imported;
-    try {
-      imported = await importImageFile(file);
-    } catch {
-      return NOT_AN_IMAGE;
-    }
-    const plan = store.createPlan(name, imported.dataUrl);
+  function handleCreateFromImage(name: string, image: ImportedImage, boxPx: Rect, ftPerPx: number): string | null {
+    const plan = store.createPlan(name, image.dataUrl);
     if (!plan) return STORAGE_FULL;
-    dispatchCalibration({
-      type: 'START',
-      planId: plan.id,
-      src: imported.dataUrl,
-      natural: imported.size,
-      draft: null,
-      restore: { src: null, underlay: undefined },
-    });
+    const underlay = underlayFromScale(image.size, boxPx, ftPerPx, { x: 0, y: 0 });
+    store.setUnderlay(plan.id, underlay);
+    showWholeImage(underlay, image.size);
     setNewPlanOpen(false);
     return null;
   }
@@ -215,7 +195,7 @@ export default function App() {
   return (
     <div className="app">
       <div className="toolbar">
-        <button className="iconButton" disabled={calibrating} onClick={() => setDrawerOpen(true)} aria-label="Floor Plans" title="Floor Plans">
+        <button className="iconButton" onClick={() => setDrawerOpen(true)} aria-label="Floor Plans" title="Floor Plans">
           <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
             <path d="M4 6h16M4 12h16M4 18h16" strokeLinecap="round" />
           </svg>
@@ -270,7 +250,7 @@ export default function App() {
         </button>
         <UnderlayButton
           hasImage={!!(store.underlayImage && store.activePlanMeta?.underlay)}
-          disabled={calibrating || noPlans}
+          disabled={noPlans}
           onAddFile={handleAddOrReplaceFile}
           onRecalibrate={handleRecalibrate}
           onReplaceFile={handleAddOrReplaceFile}
@@ -280,7 +260,7 @@ export default function App() {
         <button
           className="iconButton"
           onClick={() => store.undo()}
-          disabled={!store.canUndo || calibrating}
+          disabled={!store.canUndo}
           aria-label="Undo"
           title="Undo"
         >
@@ -291,7 +271,7 @@ export default function App() {
         <button
           className="iconButton"
           onClick={() => store.redo()}
-          disabled={!store.canRedo || calibrating}
+          disabled={!store.canRedo}
           aria-label="Redo"
           title="Redo"
         >
@@ -313,16 +293,7 @@ export default function App() {
               ? { src: store.underlayImage, rect: store.activePlanMeta.underlay }
               : null
           }
-          calibration={
-            calibration
-              ? {
-                  session: calibration,
-                  dispatch: dispatchCalibration,
-                  onDone: handleCalibrationDone,
-                  onCancel: handleCalibrationCancel,
-                }
-              : null
-          }
+          fitRequest={fitRequest}
         />
         <FurniturePanel
           library={store.library}
@@ -331,7 +302,7 @@ export default function App() {
           onDuplicate={store.duplicateTemplate}
           onDelete={store.deleteTemplate}
           onStartDrag={(template, e) => {
-            if (calibrating || noPlans) return;
+            if (noPlans) return;
             e.preventDefault();
             setDraggingTemplate(template);
           }}
@@ -340,10 +311,18 @@ export default function App() {
       {editor && (
         <FurnitureEditorModal editing={editor.editing} onSave={handleSaveFurniture} onCancel={() => setEditor(null)} />
       )}
+      {calibration && (
+        <CalibrationModal
+          src={calibration.src}
+          natural={calibration.natural}
+          onSave={handleCalibrationSave}
+          onCancel={() => setCalibration(null)}
+        />
+      )}
       {(newPlanOpen || noPlans) && (
         <NewPlanModal
           onCreateManual={handleCreateManual}
-          onUpload={handleUploadNewPlan}
+          onCreateFromImage={handleCreateFromImage}
           onCancel={noPlans ? undefined : () => setNewPlanOpen(false)}
         />
       )}

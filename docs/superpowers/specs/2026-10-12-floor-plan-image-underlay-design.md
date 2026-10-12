@@ -27,44 +27,23 @@
 - Below it, two large side-by-side cards:
   - **Manually create floor plan** (left) — creates a blank plan, identical to today's behavior.
   - **Upload floor plan image** (right) — clicking opens a file picker. Dropping an image file onto the card, or pasting an image with ⌘V while the modal is open, does the same.
-- After an image is chosen: it is processed (see §4 Import), the plan is created with the given title, the modal closes, and calibration mode starts.
+- After an image is chosen it is processed (see §4 Import) and the same modal grows into the calibration step (§2). **Back** returns to the choice cards with the title kept. The plan is only created on **Save**.
 - A non-image or unreadable file shows an inline error on the upload card; the modal stays open.
 - Esc, backdrop click, or × closes the modal without creating a plan.
 - Visual style matches the existing furniture editor modal.
 - With zero plans (first launch, or after deleting the last plan) the modal is the empty state: it opens automatically and can't be dismissed (no ×, Esc or backdrop close). No plan is ever auto-created.
 
-## 2. Calibration mode
+## 2. Calibration (in a modal)
 
-**Entering**
+Calibration is its own modal step, never a mode on the main canvas. It is reached from the new-plan modal (Upload) or opened directly from the toolbar (Add, Replace, Recalibrate).
 
-- The image is placed centered in the current view, sized to fit the visible area, at full opacity and unlocked.
-- A calibration bar appears across the top of the canvas showing the current step's instruction plus **Cancel** and **Done** buttons.
-- Furniture and walls remain visible but are non-interactive. Zoom and pan keep working. Undo/redo are disabled.
-
-**Step 1 — Measure**
-
-- The user drags a dashed box over a region of the image with a known size.
-- On release, a small popover anchored to the box asks for **width × height**.
-  - Each dimension is a row with two numeric fields, `[ 8 ] ft [ 6 ] in` — feet and inches, never decimals or typed `'`/`"` symbols. Fields accept digits only; a blank field counts as 0; inches must be 0–11.
-  - Either field may be left empty; one dimension is enough (covers measuring a single door or tub). At least one is required to apply.
-  - Invalid input (inches ≥ 12, or a zero length) highlights that row and names the problem.
-- **Apply** computes feet-per-image-pixel from the entered dimension(s):
-  - One dimension: `scale = realFt / boxImagePx` along that axis.
-  - Both: the average of the two per-axis scales.
-- After scaling, the image is translated so the measured box's top-left corner lands on the nearest 1 ft grid intersection.
-- Dragging a new box at any time re-measures and replaces the previous result.
-
-**Step 2 — Position**
-
-- Dragging the image (outside the measure gesture) moves it freely, no snapping.
-- There is no manual resize: the measurement sets the scale, and users are assumed to measure accurately. To change the scale, use **Measure again**.
-
-How measure vs. move is distinguished: before the first Apply, a drag on the image draws a measure box. After Apply, a drag on the image moves it, and the calibration bar offers a **Measure again** button that returns to the measure gesture.
-
-**Exiting**
-
-- **Done** saves the underlay and locks it.
-- **Cancel** restores the underlay as it was before entering calibration. For a brand-new upload (no previous underlay), Cancel removes the image and its stored data, leaving a blank plan. For **Replace image**, Cancel restores the old image and its calibration.
+- **Header:** "Outline an area with a labeled length and width on the uploaded floor plan", with a small hint: drag to outline · scroll to zoom · hold Space and drag to pan.
+- **Body:** the image, fit to the panel. Wheel zooms around the cursor; middle-drag or Space-drag pans. A left-drag outlines an area (solid blue outline, light fill); drawing again replaces it. Outlines under 6 screen px in both directions are ignored.
+- **Footer:** Width ↔ and Height ↕ rows, each `[ ] ft [ ] in` (digits only, blank counts as 0, inches 0–11); one side is enough. A status line guides the next step or shows errors. **Cancel** (or **Back** in the new-plan modal) and **Save**, enabled once there is an outline and a size.
+- **Live preview:** once a size is entered, a 1 ft grid is drawn over the image starting at the outline's corner, so the scale can be checked before saving.
+- **Save:** feet-per-pixel comes from the entered side(s) (averaged when both are given). The image is placed so the outlined area's top-left lands on a grid line — at the origin for a new or replaced image, or where that area already was when recalibrating (so furniture stays put). The plan then opens with the image locked and the view zoomed to fit it.
+- **Cancel / Esc:** closes without changing anything.
+- There is no drag-to-position or resize afterwards; users are assumed to measure accurately. To change the scale, Recalibrate.
 
 ## 3. Locked image and toolbar
 
@@ -76,10 +55,10 @@ How measure vs. move is distinguished: before the first Apply, a drag on the ima
 
 **Toolbar image button** (icon-only, placed next to undo/redo)
 
-- Plan has no image: click → file picker → calibration mode. Works for existing plans, including manually drawn ones.
+- Plan has no image: click → file picker → calibration modal. Works for existing plans, including manually drawn ones.
 - Plan has an image: click → small menu:
-  - **Recalibrate** — enter calibration mode with the current image and placement.
-  - **Replace image** — file picker → calibration mode with the new image; Cancel keeps the old image.
+  - **Recalibrate** — opens the calibration modal for the current image.
+  - **Replace image** — file picker → calibration modal for the new image; Cancel keeps the old image.
   - **Remove image** — confirmation prompt (not undoable), then removes the underlay and its stored data.
 - Paste and drop are only supported in the new-plan modal; on an existing plan, the toolbar button is the entry point.
 
@@ -113,8 +92,7 @@ interface FloorPlan {
 **Edge cases**
 
 - Writing the image key is wrapped in try/catch; a quota error shows "Not enough browser storage for this image".
-  - New plan from the modal: the image is written when the plan is created, so a quota error creates no plan.
-  - Add/Replace on an existing plan: the new image is only written on **Done**, so the stored image always matches the stored placement (a reload mid-calibration keeps the old image). A quota error on Done keeps the user in calibration with the old image intact.
+  - Nothing is written until **Save**, so a reload or Cancel mid-calibration leaves the plan as it was. A quota error on Save shows in the calibration status line and keeps the modal open; no plan is created and an existing image is untouched.
 - Deleting a plan also removes its image key.
 - A plan with `underlay` but no stored image (key missing or unreadable) renders as having no image; the toolbar offers **Add floor plan image**.
 
@@ -124,9 +102,9 @@ interface FloorPlan {
 - Unit tests for pure logic:
   - Feet + inches combination (blank fields, inches range, zero length, non-digits).
   - Box → scale computation (one dimension, both dimensions, averaging).
-  - Grid snapping of the measured box's top-left.
+  - Placement: the outlined area's top-left snaps to the grid line nearest its anchor; view fitting.
   - Underlay storage round-trip and cleanup on plan delete (localStorage stubbed via jsdom/happy-dom).
-- UI (modal, calibration flow, toolbar menu, locked-image pass-through) is verified in the browser preview against the sample listing image.
+- UI (modals, calibration step, toolbar menu, locked-image pass-through) is verified in the browser preview against the sample listing image.
 
 ## Out of scope
 

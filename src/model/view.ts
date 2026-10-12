@@ -26,3 +26,18 @@ export function pickScaleBar(scale: number): number {
   }
   return best;
 }
+
+/** View that centers `rect` in a `viewport` (px), filling 90% of the tighter
+ * axis. `clamp` limits the scale (the rect stays centered either way). */
+export function fitView(
+  rect: { x: number; y: number; width: number; height: number },
+  viewport: { width: number; height: number },
+  clamp: (scale: number) => number = (s) => s,
+): View {
+  const scale = clamp(Math.min(viewport.width / rect.width, viewport.height / rect.height) * 0.9);
+  return {
+    x: rect.x + rect.width / 2 - viewport.width / 2 / scale,
+    y: rect.y + rect.height / 2 - viewport.height / 2 / scale,
+    scale,
+  };
+}

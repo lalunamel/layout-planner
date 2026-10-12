@@ -1,5 +1,7 @@
 import { fitWithin, MAX_IMAGE_SIDE_PX, type Size } from './underlay';
 
+export const NOT_AN_IMAGE = "That file isn't an image this browser can read";
+
 export interface ImportedImage {
   dataUrl: string;
   size: Size;

@@ -1,25 +1,34 @@
 import { useEffect, useRef, useState } from 'react';
+import { importImageFile, NOT_AN_IMAGE, type ImportedImage } from '../model/imageImport';
+import type { Rect } from '../model/underlay';
+import { CalibrationPanel } from './calibration/CalibrationPanel';
+import calibrationStyles from './calibration/Calibration.module.css';
 import styles from './NewPlanModal.module.css';
 
 export const DEFAULT_PLAN_NAME = 'Untitled Floor Plan';
 
 interface NewPlanModalProps {
   onCreateManual: (name: string) => void;
-  onUpload: (name: string, file: File) => Promise<string | null>;
+  /** Returns an error message to show, or null once the plan is created. */
+  onCreateFromImage: (name: string, image: ImportedImage, boxPx: Rect, ftPerPx: number) => string | null;
   /** Omitted for the empty state: with no plans there's nothing to go back to. */
   onCancel?: () => void;
 }
 
-export function NewPlanModal({ onCreateManual, onUpload, onCancel }: NewPlanModalProps) {
+export function NewPlanModal({ onCreateManual, onCreateFromImage, onCancel }: NewPlanModalProps) {
   const [title, setTitle] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [dropActive, setDropActive] = useState(false);
   const [busy, setBusy] = useState(false);
+  // Set once an image is read: the modal moves on to calibrating it.
+  const [image, setImage] = useState<ImportedImage | null>(null);
+  const imageRef = useRef(image);
+  imageRef.current = image;
   const titleRef = useRef<HTMLInputElement | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const name = title.trim() || DEFAULT_PLAN_NAME;
-  // While an image is being read, the upload will still create its plan, so
-  // closing the modal or creating a manual plan is ignored until it settles.
+  // While an image is being read, the modal is about to move on to
+  // calibration, so closing it or creating a manual plan waits until it settles.
   const busyRef = useRef(false);
 
   async function upload(file: File) {
@@ -27,10 +36,13 @@ export function NewPlanModal({ onCreateManual, onUpload, onCancel }: NewPlanModa
     busyRef.current = true;
     setBusy(true);
     setError(null);
-    const message = await onUpload(name, file);
+    try {
+      setImage(await importImageFile(file));
+    } catch {
+      setError(NOT_AN_IMAGE);
+    }
     busyRef.current = false;
     setBusy(false);
-    if (message) setError(message);
   }
 
   function close() {
@@ -53,10 +65,12 @@ export function NewPlanModal({ onCreateManual, onUpload, onCancel }: NewPlanModa
   }, []);
 
   useEffect(() => {
+    // While calibrating, the calibration panel owns Esc and paste is moot.
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') closeRef.current();
+      if (e.key === 'Escape' && !imageRef.current) closeRef.current();
     }
     function onPaste(e: ClipboardEvent) {
+      if (imageRef.current) return;
       const file = [...(e.clipboardData?.files ?? [])].find((f) => f.type.startsWith('image/'));
       if (!file) return; // plain-text paste into the title field proceeds normally
       e.preventDefault();
@@ -69,6 +83,20 @@ export function NewPlanModal({ onCreateManual, onUpload, onCancel }: NewPlanModa
       window.removeEventListener('paste', onPaste);
     };
   }, []);
+
+  if (image) {
+    return (
+      <div className={calibrationStyles.scrim}>
+        <CalibrationPanel
+          src={image.dataUrl}
+          natural={image.size}
+          cancelLabel="Back"
+          onCancel={() => setImage(null)}
+          onSave={(boxPx, ftPerPx) => onCreateFromImage(name, image, boxPx, ftPerPx)}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className={styles.scrim} onMouseDown={(e) => e.target === e.currentTarget && close()}>

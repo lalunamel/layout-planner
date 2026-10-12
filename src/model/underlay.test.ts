@@ -1,15 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
-  fitUnderlayToView,
   fitWithin,
   imageRectToWorld,
-  measureUnderlay,
   normalizeRect,
   lengthFromFeetInches,
-  pointInRect,
   underlayHeightFt,
   underlayRect,
-  worldRectToImage,
+  scaleFromMeasurement,
+  underlayFromScale,
 } from './underlay';
 
 const natural = { width: 1000, height: 500 };
@@ -67,70 +65,47 @@ describe('underlay rects', () => {
   it('normalizes a rect dragged in any direction', () => {
     expect(normalizeRect({ x: 5, y: 1 }, { x: 2, y: 4 })).toEqual({ x: 2, y: 1, width: 3, height: 3 });
   });
-  it('hit-tests inclusive of edges', () => {
-    const r = { x: 0, y: 0, width: 10, height: 5 };
-    expect(pointInRect({ x: 10, y: 5 }, r)).toBe(true);
-    expect(pointInRect({ x: 10.01, y: 2 }, r)).toBe(false);
-  });
-  it('round-trips world <-> image pixel rects', () => {
+  it('maps an image pixel rect into world feet', () => {
     const u = { x: 4, y: -2, widthFt: 50 }; // 0.05 ft/px
-    const world = { x: 9, y: 3, width: 5, height: 2.5 };
-    const px = worldRectToImage(u, natural, world);
-    expect(px.x).toBeCloseTo(100);
-    expect(px.y).toBeCloseTo(100);
-    expect(px.width).toBeCloseTo(100);
-    expect(px.height).toBeCloseTo(50);
-    const back = imageRectToWorld(u, natural, px);
-    expect(back.x).toBeCloseTo(9);
-    expect(back.y).toBeCloseTo(3);
-    expect(back.width).toBeCloseTo(5);
-    expect(back.height).toBeCloseTo(2.5);
+    expect(imageRectToWorld(u, natural, { x: 100, y: 100, width: 100, height: 50 })).toEqual({
+      x: 9,
+      y: 3,
+      width: 5,
+      height: 2.5,
+    });
   });
 });
 
-describe('fitUnderlayToView', () => {
-  it('fits within 80% of the view, centered', () => {
-    expect(fitUnderlayToView({ x: 0, y: 0, width: 40, height: 30 }, natural)).toEqual({ x: 4, y: 7, widthFt: 32 });
-  });
-  it('is limited by height for tall images', () => {
-    const u = fitUnderlayToView({ x: 10, y: 10, width: 40, height: 30 }, { width: 500, height: 1000 });
-    expect(u.widthFt).toBeCloseTo(12); // 80% of 30 = 24 tall → 12 wide
-    expect(u.x).toBeCloseTo(10 + (40 - 12) / 2);
-    expect(u.y).toBeCloseTo(10 + (30 - 24) / 2);
-  });
-});
-
-describe('measureUnderlay', () => {
-  it('scales from one dimension, anchoring the box on a grid line', () => {
-    const box = { x: 10, y: 5, width: 10, height: 5 }; // 100 x 50 image px
-    const u = measureUnderlay(base, natural, box, { width: 20, height: null })!;
-    expect(u.widthFt).toBeCloseTo(200); // 0.2 ft/px
-    expect(u.x).toBeCloseTo(-10); // box px x=100 → 10 - 100*0.2
-    expect(u.y).toBeCloseTo(-5);
+describe('scaleFromMeasurement', () => {
+  const box = { x: 100, y: 50, width: 100, height: 50 };
+  it('derives feet per image pixel from one side', () => {
+    expect(scaleFromMeasurement(box, { width: 20, height: null })).toBeCloseTo(0.2);
+    expect(scaleFromMeasurement(box, { width: null, height: 10 })).toBeCloseTo(0.2);
   });
   it('averages the two per-axis scales when both are given', () => {
-    const box = { x: 10, y: 5, width: 10, height: 5 };
-    const u = measureUnderlay(base, natural, box, { width: 20, height: 12 })!; // 0.2 and 0.24
-    expect(u.widthFt).toBeCloseTo(220);
+    expect(scaleFromMeasurement(box, { width: 20, height: 12 })).toBeCloseTo(0.22); // 0.2 and 0.24
   });
-  it('snaps the measured box top-left to the nearest 1 ft grid line', () => {
-    const box = { x: 10.4, y: 5.6, width: 10, height: 5 }; // px x=104, y=56
-    const u = measureUnderlay(base, natural, box, { width: 20, height: null })!;
-    const measured = imageRectToWorld(u, natural, worldRectToImage(base, natural, box));
+  it('measures a single horizontal line using only the width', () => {
+    expect(scaleFromMeasurement({ x: 0, y: 0, width: 30, height: 0 }, { width: 3, height: null })).toBeCloseTo(0.1);
+  });
+  it('rejects a dimension for a side the box does not have', () => {
+    expect(scaleFromMeasurement({ x: 0, y: 0, width: 30, height: 0 }, { width: null, height: 4 })).toBeNull();
+  });
+  it('rejects when no dimension is given', () => {
+    expect(scaleFromMeasurement(box, { width: null, height: null })).toBeNull();
+  });
+});
+
+describe('underlayFromScale', () => {
+  it('sizes the image and lands the measured box on the grid line nearest the anchor', () => {
+    const box = { x: 100, y: 50, width: 100, height: 50 };
+    const u = underlayFromScale(natural, box, 0.2, { x: 10.4, y: 5.6 });
+    expect(u.widthFt).toBeCloseTo(200);
+    expect(u.x).toBeCloseTo(-10); // box left 100px * 0.2 = 20 ft right of the image edge, at x=10
+    expect(u.y).toBeCloseTo(-4); // box top 50px * 0.2 = 10 ft below the image edge, at y=6
+    const measured = imageRectToWorld(u, natural, box);
     expect(measured.x).toBeCloseTo(10);
     expect(measured.y).toBeCloseTo(6);
     expect(measured.width).toBeCloseTo(20);
-  });
-  it('measures a single horizontal line using only the width', () => {
-    const line = { x: 10, y: 5, width: 3, height: 0 };
-    const u = measureUnderlay(base, natural, line, { width: 3, height: null })!;
-    expect(u.widthFt).toBeCloseTo(100);
-  });
-  it('rejects a dimension for a side the box does not have', () => {
-    const line = { x: 10, y: 5, width: 3, height: 0 };
-    expect(measureUnderlay(base, natural, line, { width: null, height: 4 })).toBeNull();
-  });
-  it('rejects when no dimension is given', () => {
-    expect(measureUnderlay(base, natural, { x: 0, y: 0, width: 1, height: 1 }, { width: null, height: null })).toBeNull();
   });
 });
