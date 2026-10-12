@@ -1,4 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useReducer, useRef, useState } from 'react';
+import { calibrationReducer, type CalibrationRestore } from './model/calibration';
+import { importImageFile, loadImageSize } from './model/imageImport';
 import type { FurnitureTemplate, Point } from './model/types';
 import { makeId } from './model/geometry';
 import { useAppStore } from './store/useAppStore';
@@ -6,9 +8,13 @@ import { Canvas, type CanvasMode } from './components/Canvas';
 import { FurniturePanel } from './components/FurniturePanel';
 import { FurnitureEditorModal } from './components/FurnitureEditorModal';
 import { PlansDrawer } from './components/PlansDrawer';
+import { UnderlayButton } from './components/UnderlayButton';
 import './App.css';
 
 type EditorState = { editing: FurnitureTemplate | null } | null;
+
+const STORAGE_FULL = 'Not enough browser storage for this image';
+const NOT_AN_IMAGE = "That file isn't an image this browser can read";
 
 export default function App() {
   const store = useAppStore();
@@ -22,6 +28,8 @@ export default function App() {
   const [editingName, setEditingName] = useState(false);
   const nameInputRef = useRef<HTMLInputElement | null>(null);
   const focusNameOnNextPlan = useRef(false);
+  const [calibration, dispatchCalibration] = useReducer(calibrationReducer, null);
+  const calibrating = calibration !== null;
 
   useEffect(() => {
     if (store.plans.length === 0) {
@@ -51,6 +59,7 @@ export default function App() {
       if (target && ['INPUT', 'TEXTAREA'].includes(target.tagName)) return;
       const mod = e.metaKey || e.ctrlKey;
       if (!mod || e.key.toLowerCase() !== 'z') return;
+      if (calibrating) return;
       e.preventDefault();
       if (e.shiftKey) {
         store.redo();
@@ -61,7 +70,7 @@ export default function App() {
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [store.undo, store.redo]);
+  }, [store.undo, store.redo, calibrating]);
 
   // Holding spacebar temporarily switches to Pan mode, like Figma/Photoshop —
   // releasing it restores whichever mode was active before.
@@ -118,6 +127,63 @@ export default function App() {
     setEditor(null);
   }
 
+  async function startCalibrationFromFile(planId: string, file: File, restore: CalibrationRestore): Promise<string | null> {
+    let imported;
+    try {
+      imported = await importImageFile(file);
+    } catch {
+      return NOT_AN_IMAGE;
+    }
+    if (!store.setUnderlayImage(planId, imported.dataUrl)) return STORAGE_FULL;
+    dispatchCalibration({ type: 'START', planId, src: imported.dataUrl, natural: imported.size, draft: null, restore });
+    return null;
+  }
+
+  function currentRestore(): CalibrationRestore {
+    return { src: store.underlayImage, underlay: store.activePlanMeta?.underlay };
+  }
+
+  async function handleAddOrReplaceFile(file: File) {
+    if (!store.activePlanId) return;
+    const error = await startCalibrationFromFile(store.activePlanId, file, currentRestore());
+    if (error) window.alert(error);
+  }
+
+  async function handleRecalibrate() {
+    const planId = store.activePlanId;
+    const src = store.underlayImage;
+    const underlay = store.activePlanMeta?.underlay;
+    if (!planId || !src || !underlay) return;
+    let natural;
+    try {
+      natural = await loadImageSize(src);
+    } catch {
+      return;
+    }
+    dispatchCalibration({ type: 'START', planId, src, natural, draft: underlay, restore: { src, underlay } });
+  }
+
+  function handleRemoveImage() {
+    const planId = store.activePlanId;
+    if (!planId || !window.confirm('Remove the floor plan image? This can’t be undone.')) return;
+    store.setUnderlay(planId, undefined);
+    store.setUnderlayImage(planId, null);
+  }
+
+  function handleCalibrationDone() {
+    if (!calibration) return;
+    if (calibration.draft) store.setUnderlay(calibration.planId, calibration.draft);
+    dispatchCalibration({ type: 'END' });
+  }
+
+  function handleCalibrationCancel() {
+    if (!calibration) return;
+    const { planId, src, restore } = calibration;
+    if (restore.src === null) store.setUnderlayImage(planId, null);
+    else if (restore.src !== src) store.setUnderlayImage(planId, restore.src);
+    dispatchCalibration({ type: 'END' });
+  }
+
   function commitName() {
     if (store.activePlanId && nameDraft.trim()) {
       store.renamePlan(store.activePlanId, nameDraft.trim());
@@ -128,7 +194,7 @@ export default function App() {
   return (
     <div className="app">
       <div className="toolbar">
-        <button className="iconButton" onClick={() => setDrawerOpen(true)} aria-label="Floor Plans" title="Floor Plans">
+        <button className="iconButton" disabled={calibrating} onClick={() => setDrawerOpen(true)} aria-label="Floor Plans" title="Floor Plans">
           <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
             <path d="M4 6h16M4 12h16M4 18h16" strokeLinecap="round" />
           </svg>
@@ -181,11 +247,19 @@ export default function App() {
             />
           </svg>
         </button>
+        <UnderlayButton
+          hasImage={!!(store.underlayImage && store.activePlanMeta?.underlay)}
+          disabled={calibrating}
+          onAddFile={handleAddOrReplaceFile}
+          onRecalibrate={handleRecalibrate}
+          onReplaceFile={handleAddOrReplaceFile}
+          onRemove={handleRemoveImage}
+        />
         <div className="toolbarDivider" />
         <button
           className="iconButton"
           onClick={() => store.undo()}
-          disabled={!store.canUndo}
+          disabled={!store.canUndo || calibrating}
           aria-label="Undo"
           title="Undo"
         >
@@ -196,7 +270,7 @@ export default function App() {
         <button
           className="iconButton"
           onClick={() => store.redo()}
-          disabled={!store.canRedo}
+          disabled={!store.canRedo || calibrating}
           aria-label="Redo"
           title="Redo"
         >
@@ -218,7 +292,16 @@ export default function App() {
               ? { src: store.underlayImage, rect: store.activePlanMeta.underlay }
               : null
           }
-          calibration={null}
+          calibration={
+            calibration
+              ? {
+                  session: calibration,
+                  dispatch: dispatchCalibration,
+                  onDone: handleCalibrationDone,
+                  onCancel: handleCalibrationCancel,
+                }
+              : null
+          }
         />
         <FurniturePanel
           library={store.library}
@@ -227,6 +310,7 @@ export default function App() {
           onDuplicate={store.duplicateTemplate}
           onDelete={store.deleteTemplate}
           onStartDrag={(template, e) => {
+            if (calibrating) return;
             e.preventDefault();
             setDraggingTemplate(template);
           }}

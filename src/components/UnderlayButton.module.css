@@ -1,0 +1,40 @@
+.wrap {
+  position: relative;
+}
+
+.menu {
+  position: absolute;
+  top: 40px;
+  right: 0;
+  background: #fff;
+  border: 1px solid var(--paper-grid-major);
+  border-radius: 10px;
+  box-shadow: var(--shadow-hover);
+  min-width: 150px;
+  z-index: 92;
+  overflow: hidden;
+}
+
+.menu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: none;
+  padding: 9px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  color: var(--ink);
+}
+
+.menu button:hover {
+  background: var(--blue-50);
+}
+
+.danger {
+  color: var(--danger);
+}
+
+.fileInput {
+  display: none;
+}
