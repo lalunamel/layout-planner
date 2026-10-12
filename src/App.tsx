@@ -8,6 +8,7 @@ import { Canvas, type CanvasMode } from './components/Canvas';
 import { FurniturePanel } from './components/FurniturePanel';
 import { FurnitureEditorModal } from './components/FurnitureEditorModal';
 import { PlansDrawer } from './components/PlansDrawer';
+import { DEFAULT_PLAN_NAME, NewPlanModal } from './components/NewPlanModal';
 import { UnderlayButton } from './components/UnderlayButton';
 import './App.css';
 
@@ -24,27 +25,19 @@ export default function App() {
   const [editor, setEditor] = useState<EditorState>(null);
   const [draggingTemplate, setDraggingTemplate] = useState<FurnitureTemplate | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [newPlanOpen, setNewPlanOpen] = useState(false);
   const [nameDraft, setNameDraft] = useState('');
   const [editingName, setEditingName] = useState(false);
   const nameInputRef = useRef<HTMLInputElement | null>(null);
-  const focusNameOnNextPlan = useRef(false);
   const [calibration, dispatchCalibration] = useReducer(calibrationReducer, null);
   const calibrating = calibration !== null;
 
   useEffect(() => {
     if (store.plans.length === 0) {
-      store.createPlan('Untitled Floor Plan');
+      store.createPlan(DEFAULT_PLAN_NAME);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [store.plans.length]);
-
-  useEffect(() => {
-    if (focusNameOnNextPlan.current && store.activePlanMeta) {
-      focusNameOnNextPlan.current = false;
-      setNameDraft(store.activePlanMeta.name);
-      setEditingName(true);
-    }
-  }, [store.activePlanMeta]);
 
   useEffect(() => {
     if (editingName) {
@@ -184,6 +177,32 @@ export default function App() {
     dispatchCalibration({ type: 'END' });
   }
 
+  function handleCreateManual(name: string) {
+    store.createPlan(name);
+    setNewPlanOpen(false);
+  }
+
+  async function handleUploadNewPlan(name: string, file: File): Promise<string | null> {
+    let imported;
+    try {
+      imported = await importImageFile(file);
+    } catch {
+      return NOT_AN_IMAGE;
+    }
+    const plan = store.createPlan(name, imported.dataUrl);
+    if (!plan) return STORAGE_FULL;
+    dispatchCalibration({
+      type: 'START',
+      planId: plan.id,
+      src: imported.dataUrl,
+      natural: imported.size,
+      draft: null,
+      restore: { src: null, underlay: undefined },
+    });
+    setNewPlanOpen(false);
+    return null;
+  }
+
   function commitName() {
     if (store.activePlanId && nameDraft.trim()) {
       store.renamePlan(store.activePlanId, nameDraft.trim());
@@ -319,6 +338,13 @@ export default function App() {
       {editor && (
         <FurnitureEditorModal editing={editor.editing} onSave={handleSaveFurniture} onCancel={() => setEditor(null)} />
       )}
+      {newPlanOpen && (
+        <NewPlanModal
+          onCreateManual={handleCreateManual}
+          onUpload={handleUploadNewPlan}
+          onCancel={() => setNewPlanOpen(false)}
+        />
+      )}
       <PlansDrawer
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
@@ -326,9 +352,8 @@ export default function App() {
         activePlanId={store.activePlanId}
         onOpenPlan={store.openPlan}
         onNewPlan={() => {
-          focusNameOnNextPlan.current = true;
-          store.createPlan('Untitled Floor Plan');
           setDrawerOpen(false);
+          setNewPlanOpen(true);
         }}
         onRenamePlan={store.renamePlan}
         onDeletePlan={store.deletePlan}
