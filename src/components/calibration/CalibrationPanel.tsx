@@ -203,6 +203,9 @@ export function CalibrationPanel({ src, natural, onSave, onCancel, cancelLabel =
       <div className={styles.header}>
         <p className={styles.instruction}>{CALIBRATION_INSTRUCTION}</p>
         <p className={styles.hint}>Drag to outline · scroll to zoom · hold Space and drag to pan</p>
+        <p className={styles.note}>
+          Floor plans from listings are likely not to scale, so the grid may not line up exactly with every room.
+        </p>
       </div>
       <div className={styles.canvasWrap} ref={wrapRef}>
         {view && size.width > 0 && (

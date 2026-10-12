@@ -40,6 +40,17 @@
   color: var(--ink-soft);
 }
 
+.note {
+  display: inline-block;
+  margin: 10px 0 0;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: var(--ink);
+  background: var(--blue-50);
+  border: 1px solid var(--blue-200);
+  border-radius: 8px;
+}
+
 .canvasWrap {
   flex: 1;
   min-height: 0;
