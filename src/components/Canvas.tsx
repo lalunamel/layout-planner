@@ -286,6 +286,11 @@ export function Canvas({
     if (mode === 'pointer' && isBackgroundTarget(e)) {
       setSelectedFurnitureId(null);
       setSelectedWallId(null);
+      // With no walls to place, dragging empty space pans the view.
+      if (!allowWallDrawing && e.button === 0) {
+        e.preventDefault();
+        startPan(e);
+      }
     }
   }
 
@@ -455,7 +460,7 @@ export function Canvas({
 
   const drawingLastPoint = drawingPoints ? drawingPoints[drawingPoints.length - 1] : null;
   const showGhost = mode === 'pointer' && allowWallDrawing && !dragCtx && hoverPoint;
-  const svgCursor = isPanning ? 'grabbing' : mode === 'pan' ? 'grab' : undefined;
+  const svgCursor = isPanning ? 'grabbing' : mode === 'pan' || !allowWallDrawing ? 'grab' : undefined;
 
   // Walls to show a live dimension label for: while dragging a wall, that
   // wall plus every wall connected to either of its original endpoints
