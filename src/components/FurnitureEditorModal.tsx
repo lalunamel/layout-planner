@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { FurnitureTemplate, Point } from '../model/types';
+import type { Point } from '../model/types';
 import { distance, polygonPath, snapPoint } from '../model/geometry';
 import { GhostPoint, RubberBandPreview } from './DrawingAids';
 import styles from './FurnitureEditorModal.module.css';
@@ -14,14 +14,13 @@ function clampScale(scale: number): number {
 }
 
 interface FurnitureEditorModalProps {
-  editing: FurnitureTemplate | null;
   onSave: (name: string, points: Point[]) => void;
   onCancel: () => void;
 }
 
-export function FurnitureEditorModal({ editing, onSave, onCancel }: FurnitureEditorModalProps) {
-  const [name, setName] = useState(editing?.name ?? '');
-  const [points, setPoints] = useState<Point[]>(editing?.points ?? []);
+export function FurnitureEditorModal({ onSave, onCancel }: FurnitureEditorModalProps) {
+  const [name, setName] = useState('');
+  const [points, setPoints] = useState<Point[]>([]);
   const [drawingPoints, setDrawingPoints] = useState<Point[] | null>(null);
   const [hoverPoint, setHoverPoint] = useState<Point | null>(null);
   const [view, setView] = useState({ x: -1, y: -1, scale: DEFAULT_SCALE });

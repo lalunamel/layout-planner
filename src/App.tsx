@@ -13,8 +13,6 @@ import { UnderlayButton } from './components/UnderlayButton';
 import { CalibrationModal } from './components/calibration/CalibrationPanel';
 import './App.css';
 
-type EditorState = { editing: FurnitureTemplate | null } | null;
-
 /** Calibrating an image for an existing plan (Add, Replace or Recalibrate).
  * `previous` is the current placement when recalibrating the same image. */
 type CalibrationState = { planId: string; src: string; natural: Size; previous?: Underlay } | null;
@@ -26,7 +24,7 @@ export default function App() {
   const [mode, setMode] = useState<CanvasMode>('pointer');
   const [spaceHeld, setSpaceHeld] = useState(false);
   const effectiveMode: CanvasMode = spaceHeld ? 'pan' : mode;
-  const [editor, setEditor] = useState<EditorState>(null);
+  const [furnitureEditorOpen, setFurnitureEditorOpen] = useState(false);
   const [draggingTemplate, setDraggingTemplate] = useState<FurnitureTemplate | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [newPlanOpen, setNewPlanOpen] = useState(false);
@@ -112,12 +110,8 @@ export default function App() {
   }, [draggingTemplate]);
 
   function handleSaveFurniture(name: string, points: Point[]) {
-    if (editor?.editing) {
-      store.updateTemplate(editor.editing.id, { name, points });
-    } else {
-      store.addTemplate({ id: makeId('furniture'), name, points });
-    }
-    setEditor(null);
+    store.addTemplate({ id: makeId('furniture'), name, points });
+    setFurnitureEditorOpen(false);
   }
 
   async function handleAddOrReplaceFile(file: File) {
@@ -297,7 +291,7 @@ export default function App() {
         />
         <FurniturePanel
           library={store.library}
-          onNew={() => setEditor({ editing: null })}
+          onNew={() => setFurnitureEditorOpen(true)}
           onDelete={store.deleteTemplate}
           onStartDrag={(template, e) => {
             if (noPlans) return;
@@ -306,8 +300,8 @@ export default function App() {
           }}
         />
       </div>
-      {editor && (
-        <FurnitureEditorModal editing={editor.editing} onSave={handleSaveFurniture} onCancel={() => setEditor(null)} />
+      {furnitureEditorOpen && (
+        <FurnitureEditorModal onSave={handleSaveFurniture} onCancel={() => setFurnitureEditorOpen(false)} />
       )}
       {calibration && (
         <CalibrationModal

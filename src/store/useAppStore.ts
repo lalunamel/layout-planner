@@ -132,10 +132,6 @@ export function useAppStore() {
     setLibrary((prev) => [...prev, template]);
   }, []);
 
-  const updateTemplate = useCallback((id: string, patch: Partial<FurnitureTemplate>) => {
-    setLibrary((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)));
-  }, []);
-
   const deleteTemplate = useCallback((id: string) => {
     setLibrary((prev) => prev.filter((t) => t.id !== id));
   }, []);
@@ -159,7 +155,6 @@ export function useAppStore() {
     setUnderlayImage,
     setUnderlay,
     addTemplate,
-    updateTemplate,
     deleteTemplate,
   };
 }
