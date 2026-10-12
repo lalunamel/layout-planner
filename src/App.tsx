@@ -11,6 +11,7 @@ import { PlansDrawer } from './components/PlansDrawer';
 import { NewPlanModal } from './components/NewPlanModal';
 import { UnderlayButton } from './components/UnderlayButton';
 import { CalibrationModal } from './components/calibration/CalibrationPanel';
+import { ConfirmModal, type ConfirmRequest } from './components/ConfirmModal';
 import './App.css';
 
 /** Calibrating an image for an existing plan (Add, Replace or Recalibrate).
@@ -25,6 +26,7 @@ export default function App() {
   const [spaceHeld, setSpaceHeld] = useState(false);
   const effectiveMode: CanvasMode = spaceHeld ? 'pan' : mode;
   const [furnitureEditorOpen, setFurnitureEditorOpen] = useState(false);
+  const [confirmRequest, setConfirmRequest] = useState<ConfirmRequest | null>(null);
   const [draggingTemplate, setDraggingTemplate] = useState<FurnitureTemplate | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [newPlanOpen, setNewPlanOpen] = useState(false);
@@ -141,9 +143,15 @@ export default function App() {
 
   function handleRemoveImage() {
     const planId = store.activePlanId;
-    if (!planId || !window.confirm('Remove the floor plan image? This can’t be undone.')) return;
-    store.setUnderlay(planId, undefined);
-    store.setUnderlayImage(planId, null);
+    if (!planId) return;
+    setConfirmRequest({
+      message: 'The floor plan image will be removed from this plan. This can’t be undone.',
+      confirmLabel: 'Remove image',
+      onConfirm: () => {
+        store.setUnderlay(planId, undefined);
+        store.setUnderlayImage(planId, null);
+      },
+    });
   }
 
   function showWholeImage(underlay: Underlay, natural: Size) {
@@ -292,7 +300,13 @@ export default function App() {
         <FurniturePanel
           library={store.library}
           onNew={() => setFurnitureEditorOpen(true)}
-          onDelete={store.deleteTemplate}
+          onDelete={(template) =>
+            setConfirmRequest({
+              message: `“${template.name}” will be deleted, along with every copy of it placed on your floor plans.`,
+              confirmLabel: 'Delete',
+              onConfirm: () => store.deleteTemplate(template.id),
+            })
+          }
           onStartDrag={(template, e) => {
             if (noPlans) return;
             e.preventDefault();
@@ -303,6 +317,7 @@ export default function App() {
       {furnitureEditorOpen && (
         <FurnitureEditorModal onSave={handleSaveFurniture} onCancel={() => setFurnitureEditorOpen(false)} />
       )}
+      {confirmRequest && <ConfirmModal request={confirmRequest} onClose={() => setConfirmRequest(null)} />}
       {calibration && (
         <CalibrationModal
           src={calibration.src}

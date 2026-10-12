@@ -5,7 +5,7 @@ import styles from './FurniturePanel.module.css';
 interface FurniturePanelProps {
   library: FurnitureTemplate[];
   onNew: () => void;
-  onDelete: (id: string) => void;
+  onDelete: (template: FurnitureTemplate) => void;
   onStartDrag: (template: FurnitureTemplate, e: React.MouseEvent) => void;
 }
 
@@ -28,11 +28,7 @@ export function FurniturePanel({ library, onNew, onDelete, onStartDrag }: Furnit
           <FurnitureCard
             key={template.id}
             template={template}
-            onDelete={() => {
-              if (window.confirm(`Delete "${template.name}"? It will also disappear from any floor plan that uses it.`)) {
-                onDelete(template.id);
-              }
-            }}
+            onDelete={() => onDelete(template)}
             onStartDrag={(e) => onStartDrag(template, e)}
           />
         ))}
