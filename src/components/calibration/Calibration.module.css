@@ -1,0 +1,119 @@
+.bar {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 8px 8px 16px;
+  background: #fff;
+  border: 1px solid var(--paper-grid-major);
+  border-radius: 12px;
+  box-shadow: var(--shadow-hover);
+  font-size: 13px;
+  color: var(--ink);
+  white-space: nowrap;
+  z-index: 10;
+}
+
+.instruction {
+  font-weight: 600;
+}
+
+.popover {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: #fff;
+  border: 1px solid var(--paper-grid-major);
+  border-radius: 12px;
+  box-shadow: var(--shadow-hover);
+  font-size: 13px;
+  z-index: 11;
+}
+
+.fields {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.times {
+  padding-top: 8px;
+  color: var(--ink-soft);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.field label {
+  font-size: 11px;
+  color: var(--ink-soft);
+}
+
+.field input {
+  width: 84px;
+  font: inherit;
+  border: 1px solid var(--paper-grid-major);
+  border-radius: 8px;
+  padding: 6px 8px;
+  background: var(--blue-50);
+}
+
+.field input:focus {
+  outline: none;
+  border-color: var(--blue-500);
+  background: #fff;
+}
+
+.field input.invalid {
+  border-color: var(--danger);
+}
+
+.error {
+  color: var(--danger);
+  font-size: 12px;
+  max-width: 200px;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.btnPrimary,
+.btnGhost {
+  border-radius: 8px;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btnPrimary {
+  background: var(--blue-500);
+  color: #fff;
+  border: none;
+}
+
+.btnPrimary:hover {
+  background: var(--blue-600);
+}
+
+.btnGhost {
+  background: none;
+  border: 1px solid var(--paper-grid-major);
+  color: var(--ink-soft);
+}
+
+.btnGhost:hover {
+  background: var(--blue-50);
+  color: var(--ink);
+}

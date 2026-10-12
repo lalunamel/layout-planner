@@ -218,6 +218,7 @@ export default function App() {
               ? { src: store.underlayImage, rect: store.activePlanMeta.underlay }
               : null
           }
+          calibration={null}
         />
         <FurniturePanel
           library={store.library}
