@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { Point } from '../../model/types';
 import type { CalibrationAction, CalibrationSession } from '../../model/calibration';
-import { measureUnderlay, parseFeetInches, type Rect } from '../../model/underlay';
+import { lengthFromFeetInches, measureUnderlay, type Rect } from '../../model/underlay';
 import styles from './Calibration.module.css';
 
 const POPOVER_MARGIN = 8;
@@ -66,8 +66,8 @@ function MeasurePopover({
   bounds: { width: number; height: number };
   dispatch: (action: CalibrationAction) => void;
 }) {
-  const [width, setWidth] = useState('');
-  const [height, setHeight] = useState('');
+  const [width, setWidth] = useState<FeetInches>({ feet: '', inches: '' });
+  const [height, setHeight] = useState<FeetInches>({ feet: '', inches: '' });
   const [error, setError] = useState<string | null>(null);
   const [invalid, setInvalid] = useState<{ width: boolean; height: boolean }>({ width: false, height: false });
   const widthRef = useRef<HTMLInputElement | null>(null);
@@ -85,12 +85,13 @@ function MeasurePopover({
   }, []);
 
   function apply() {
-    const w = width.trim() ? parseFeetInches(width) : null;
-    const h = height.trim() ? parseFeetInches(height) : null;
-    const bad = { width: !!width.trim() && w === null, height: !!height.trim() && h === null };
+    const w = lengthFromFeetInches(width.feet, width.inches);
+    const h = lengthFromFeetInches(height.feet, height.inches);
+    const bad = { width: w === 'invalid', height: h === 'invalid' };
     setInvalid(bad);
-    if (bad.width || bad.height) {
-      setError('Use a size like 8\'6", 8.5 or 8ft 6in');
+    if (w === 'invalid' || h === 'invalid') {
+      const inchesTooBig = [width, height].some((v) => Number(v.inches || 0) >= 12);
+      setError(inchesTooBig ? 'Inches go from 0 to 11' : 'A size can’t be 0');
       return;
     }
     if (w === null && h === null) {
@@ -124,30 +125,15 @@ function MeasurePopover({
       onMouseDown={(e) => e.stopPropagation()}
     >
       <div className={styles.fields}>
-        <div className={styles.field}>
-          <label htmlFor="measure-width">Width</label>
-          <input
-            id="measure-width"
-            ref={widthRef}
-            className={invalid.width ? styles.invalid : undefined}
-            placeholder={`8'6"`}
-            value={width}
-            onChange={(e) => setWidth(e.target.value)}
-            onKeyDown={onKeyDown}
-          />
-        </div>
-        <span className={styles.times}>×</span>
-        <div className={styles.field}>
-          <label htmlFor="measure-height">Height</label>
-          <input
-            id="measure-height"
-            className={invalid.height ? styles.invalid : undefined}
-            placeholder={`12'4"`}
-            value={height}
-            onChange={(e) => setHeight(e.target.value)}
-            onKeyDown={onKeyDown}
-          />
-        </div>
+        <FeetInchesRow
+          label="Width"
+          value={width}
+          invalid={invalid.width}
+          onChange={setWidth}
+          onKeyDown={onKeyDown}
+          feetRef={widthRef}
+        />
+        <FeetInchesRow label="Height" value={height} invalid={invalid.height} onChange={setHeight} onKeyDown={onKeyDown} />
       </div>
       {error && <div className={styles.error}>{error}</div>}
       <div className={styles.actions}>
@@ -158,6 +144,57 @@ function MeasurePopover({
           Apply
         </button>
       </div>
+    </div>
+  );
+}
+
+interface FeetInches {
+  feet: string;
+  inches: string;
+}
+
+const digitsOnly = (text: string) => text.replace(/\D/g, '');
+
+function FeetInchesRow({
+  label,
+  value,
+  invalid,
+  onChange,
+  onKeyDown,
+  feetRef,
+}: {
+  label: string;
+  value: FeetInches;
+  invalid: boolean;
+  onChange: (value: FeetInches) => void;
+  onKeyDown: (e: React.KeyboardEvent) => void;
+  feetRef?: React.Ref<HTMLInputElement>;
+}) {
+  const inputClass = invalid ? `${styles.unitInput} ${styles.invalid}` : styles.unitInput;
+  return (
+    <div className={styles.row} role="group" aria-label={label}>
+      <span className={styles.rowLabel}>{label}</span>
+      <input
+        ref={feetRef}
+        className={inputClass}
+        inputMode="numeric"
+        maxLength={3}
+        aria-label={`${label} feet`}
+        value={value.feet}
+        onChange={(e) => onChange({ ...value, feet: digitsOnly(e.target.value) })}
+        onKeyDown={onKeyDown}
+      />
+      <span className={styles.unit}>ft</span>
+      <input
+        className={inputClass}
+        inputMode="numeric"
+        maxLength={2}
+        aria-label={`${label} inches`}
+        value={value.inches}
+        onChange={(e) => onChange({ ...value, inches: digitsOnly(e.target.value) })}
+        onKeyDown={onKeyDown}
+      />
+      <span className={styles.unit}>in</span>
     </div>
   );
 }

@@ -45,9 +45,9 @@
 
 - The user drags a dashed box over a region of the image with a known size.
 - On release, a small popover anchored to the box asks for **width × height**.
-  - Accepted formats per field: `8'6"`, `8' 6"`, `8'`, `6"`, `8.5`, `8ft 6in`, `8 ft`. Whitespace is tolerant; a bare number means feet.
+  - Each dimension is a row with two numeric fields, `[ 8 ] ft [ 6 ] in` — feet and inches, never decimals or typed `'`/`"` symbols. Fields accept digits only; a blank field counts as 0; inches must be 0–11.
   - Either field may be left empty; one dimension is enough (covers measuring a single door or tub). At least one is required to apply.
-  - Invalid input shows an inline error on that field.
+  - Invalid input (inches ≥ 12, or a zero length) highlights that row and names the problem.
 - **Apply** computes feet-per-image-pixel from the entered dimension(s):
   - One dimension: `scale = realFt / boxImagePx` along that axis.
   - Both: the average of the two per-axis scales.
@@ -122,7 +122,7 @@ interface FloorPlan {
 
 - Add **Vitest** as a dev dependency with a `test` script.
 - Unit tests for pure logic:
-  - Dimension parser (all accepted formats, invalid inputs, empty).
+  - Feet + inches combination (blank fields, inches range, zero length, non-digits).
   - Box → scale computation (one dimension, both dimensions, averaging).
   - Grid snapping of the measured box's top-left.
   - Underlay storage round-trip and cleanup on plan delete (localStorage stubbed via jsdom/happy-dom).

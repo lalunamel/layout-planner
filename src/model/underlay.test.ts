@@ -5,7 +5,7 @@ import {
   imageRectToWorld,
   measureUnderlay,
   normalizeRect,
-  parseFeetInches,
+  lengthFromFeetInches,
   pointInRect,
   resizeFromCorner,
   underlayHeightFt,
@@ -16,33 +16,35 @@ import {
 const natural = { width: 1000, height: 500 };
 const base = { x: 0, y: 0, widthFt: 100 }; // 0.1 ft per image px
 
-describe('parseFeetInches', () => {
+describe('lengthFromFeetInches', () => {
   it.each([
-    ["8'6\"", 8.5],
-    ["8' 6\"", 8.5],
-    ["8'-6\"", 8.5],
-    ["8'", 8],
-    ['6"', 0.5],
-    ['8.5', 8.5],
-    ['8', 8],
-    ['8ft 6in', 8.5],
-    ['8 ft 6 in', 8.5],
-    ['8 ft', 8],
-    ['12 feet 4 inches', 12 + 4 / 12],
-    ['8’ 6”', 8.5],
-    ['8′6″', 8.5],
-    ['  9\'  ', 9],
-    ['30in', 2.5],
-  ])('parses %j as %d ft', (input, expected) => {
-    expect(parseFeetInches(input)).toBeCloseTo(expected, 6);
+    ['8', '6', 8.5],
+    ['8', '', 8],
+    ['8', '0', 8],
+    ['', '6', 0.5],
+    ['12', '4', 12 + 4 / 12],
+    [' 9 ', ' 3 ', 9.25],
+    ['0', '11', 11 / 12],
+  ])('reads %j ft %j in as %d ft', (feet, inches, expected) => {
+    expect(lengthFromFeetInches(feet, inches)).toBeCloseTo(expected as number, 6);
   });
 
-  it.each(['', '   ', 'abc', '8 6', "8'6", '-3', '0', "0'", '8..5', "6\" 8'", '8ft6ft'])(
-    'rejects %j',
-    (input) => {
-      expect(parseFeetInches(input)).toBeNull();
-    },
-  );
+  it('treats two empty fields as no value', () => {
+    expect(lengthFromFeetInches('', '')).toBeNull();
+    expect(lengthFromFeetInches('  ', ' ')).toBeNull();
+  });
+
+  it.each([
+    ['8', '12'],
+    ['8.5', ''],
+    ['', '6.5'],
+    ['-1', ''],
+    ['abc', ''],
+    ['0', '0'],
+    ['0', ''],
+  ])('rejects %j ft %j in', (feet, inches) => {
+    expect(lengthFromFeetInches(feet, inches)).toBe('invalid');
+  });
 });
 
 describe('fitWithin', () => {
