@@ -26,10 +26,19 @@ export interface PlacedFurniture {
   rotation: number;
 }
 
+/** Placement of a plan's background floor-plan image, in world feet.
+ * Height follows from the image's aspect ratio. */
+export interface Underlay {
+  x: number;
+  y: number;
+  widthFt: number;
+}
+
 export interface FloorPlan {
   id: string;
   name: string;
   updatedAt: string;
   walls: Wall[];
   placed: PlacedFurniture[];
+  underlay?: Underlay;
 }
