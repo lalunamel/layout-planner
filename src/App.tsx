@@ -11,7 +11,7 @@ import { PlansDrawer } from './components/PlansDrawer';
 import { NewPlanModal } from './components/NewPlanModal';
 import { UnderlayButton } from './components/UnderlayButton';
 import { CalibrationModal } from './components/calibration/CalibrationPanel';
-import { ConfirmModal, type ConfirmRequest } from './components/ConfirmModal';
+import { ConfirmModal, NoticeModal, type ConfirmRequest } from './components/ConfirmModal';
 import './App.css';
 
 /** Calibrating an image for an existing plan (Add, Replace or Recalibrate).
@@ -27,6 +27,7 @@ export default function App() {
   const effectiveMode: CanvasMode = spaceHeld ? 'pan' : mode;
   const [furnitureEditorOpen, setFurnitureEditorOpen] = useState(false);
   const [confirmRequest, setConfirmRequest] = useState<ConfirmRequest | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [draggingTemplate, setDraggingTemplate] = useState<FurnitureTemplate | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [newPlanOpen, setNewPlanOpen] = useState(false);
@@ -123,7 +124,7 @@ export default function App() {
     try {
       imported = await importImageFile(file);
     } catch {
-      window.alert(NOT_AN_IMAGE);
+      setNotice(NOT_AN_IMAGE);
       return;
     }
     setCalibration({ planId, src: imported.dataUrl, natural: imported.size });
@@ -317,6 +318,7 @@ export default function App() {
       {furnitureEditorOpen && (
         <FurnitureEditorModal onSave={handleSaveFurniture} onCancel={() => setFurnitureEditorOpen(false)} />
       )}
+      {notice && <NoticeModal title="Couldn’t use that file" message={notice} onClose={() => setNotice(null)} />}
       {confirmRequest && <ConfirmModal request={confirmRequest} onClose={() => setConfirmRequest(null)} />}
       {calibration && (
         <CalibrationModal
