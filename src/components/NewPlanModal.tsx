@@ -17,15 +17,31 @@ export function NewPlanModal({ onCreateManual, onUpload, onCancel }: NewPlanModa
   const titleRef = useRef<HTMLInputElement | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const name = title.trim() || DEFAULT_PLAN_NAME;
+  // While an image is being read, the upload will still create its plan, so
+  // closing the modal or creating a manual plan is ignored until it settles.
+  const busyRef = useRef(false);
 
   async function upload(file: File) {
-    if (busy) return;
+    if (busyRef.current) return;
+    busyRef.current = true;
     setBusy(true);
     setError(null);
     const message = await onUpload(name, file);
+    busyRef.current = false;
     setBusy(false);
     if (message) setError(message);
   }
+
+  function close() {
+    if (!busyRef.current) onCancel();
+  }
+
+  function createManual() {
+    if (!busyRef.current) onCreateManual(name);
+  }
+
+  const closeRef = useRef(close);
+  closeRef.current = close;
 
   // Keep the latest upload() reachable from the window-level listeners.
   const uploadRef = useRef(upload);
@@ -37,7 +53,7 @@ export function NewPlanModal({ onCreateManual, onUpload, onCancel }: NewPlanModa
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') onCancel();
+      if (e.key === 'Escape') closeRef.current();
     }
     function onPaste(e: ClipboardEvent) {
       const file = [...(e.clipboardData?.files ?? [])].find((f) => f.type.startsWith('image/'));
@@ -51,12 +67,12 @@ export function NewPlanModal({ onCreateManual, onUpload, onCancel }: NewPlanModa
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('paste', onPaste);
     };
-  }, [onCancel]);
+  }, []);
 
   return (
-    <div className={styles.scrim} onMouseDown={(e) => e.target === e.currentTarget && onCancel()}>
+    <div className={styles.scrim} onMouseDown={(e) => e.target === e.currentTarget && close()}>
       <div className={styles.panel} role="dialog" aria-label="New floor plan">
-        <button className={styles.close} onClick={onCancel} aria-label="Close" title="Close">
+        <button className={styles.close} onClick={close} aria-label="Close" title="Close">
           ×
         </button>
         <input
@@ -65,10 +81,10 @@ export function NewPlanModal({ onCreateManual, onUpload, onCancel }: NewPlanModa
           placeholder={DEFAULT_PLAN_NAME}
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && onCreateManual(name)}
+          onKeyDown={(e) => e.key === 'Enter' && createManual()}
         />
         <div className={styles.choices}>
-          <button className={styles.card} onClick={() => onCreateManual(name)}>
+          <button className={styles.card} disabled={busy} onClick={createManual}>
             <svg width={36} height={36} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6}>
               <path d="M4 20V4h9v6h7v10H4z" strokeLinejoin="round" />
               <path d="M13 4l7 6" strokeLinecap="round" />

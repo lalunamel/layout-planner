@@ -1,18 +1,21 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { Point } from '../../model/types';
 import type { CalibrationAction, CalibrationSession } from '../../model/calibration';
 import { measureUnderlay, parseFeetInches, type Rect } from '../../model/underlay';
 import styles from './Calibration.module.css';
 
+const POPOVER_MARGIN = 8;
+
 interface CalibrationHudProps {
   session: CalibrationSession;
   dispatch: (action: CalibrationAction) => void;
   worldToScreen: (p: Point) => { left: number; top: number };
+  bounds: { width: number; height: number };
   onDone: () => void;
   onCancel: () => void;
 }
 
-export function CalibrationHud({ session, dispatch, worldToScreen, onDone, onCancel }: CalibrationHudProps) {
+export function CalibrationHud({ session, dispatch, worldToScreen, bounds, onDone, onCancel }: CalibrationHudProps) {
   let instruction = 'Drag to move · drag corners to resize';
   if (session.step === 'measure') {
     instruction = session.pendingBox ? "Enter the box's real size" : 'Drag a box over a room whose size you know';
@@ -42,6 +45,7 @@ export function CalibrationHud({ session, dispatch, worldToScreen, onDone, onCan
             x: session.pendingBox.x + session.pendingBox.width,
             y: session.pendingBox.y + session.pendingBox.height,
           })}
+          bounds={bounds}
           dispatch={dispatch}
         />
       )}
@@ -53,11 +57,13 @@ function MeasurePopover({
   session,
   box,
   position,
+  bounds,
   dispatch,
 }: {
   session: CalibrationSession;
   box: Rect;
   position: { left: number; top: number };
+  bounds: { width: number; height: number };
   dispatch: (action: CalibrationAction) => void;
 }) {
   const [width, setWidth] = useState('');
@@ -65,6 +71,14 @@ function MeasurePopover({
   const [error, setError] = useState<string | null>(null);
   const [invalid, setInvalid] = useState<{ width: boolean; height: boolean }>({ width: false, height: false });
   const widthRef = useRef<HTMLInputElement | null>(null);
+  const popoverRef = useRef<HTMLDivElement | null>(null);
+  const [popoverSize, setPopoverSize] = useState({ width: 0, height: 0 });
+
+  // The error line changes the popover's height, so re-measure when it does.
+  useLayoutEffect(() => {
+    const el = popoverRef.current;
+    if (el) setPopoverSize({ width: el.offsetWidth, height: el.offsetHeight });
+  }, [error]);
 
   useEffect(() => {
     widthRef.current?.focus();
@@ -100,8 +114,13 @@ function MeasurePopover({
 
   return (
     <div
+      ref={popoverRef}
       className={styles.popover}
-      style={{ left: position.left + 8, top: position.top + 8 }}
+      style={{
+        // Sit just below-right of the box, but stay inside the canvas.
+        left: Math.max(POPOVER_MARGIN, Math.min(position.left + POPOVER_MARGIN, bounds.width - popoverSize.width - POPOVER_MARGIN)),
+        top: Math.max(POPOVER_MARGIN, Math.min(position.top + POPOVER_MARGIN, bounds.height - popoverSize.height - POPOVER_MARGIN)),
+      }}
       onMouseDown={(e) => e.stopPropagation()}
     >
       <div className={styles.fields}>

@@ -112,7 +112,9 @@ interface FloorPlan {
 
 **Edge cases**
 
-- Writing the image key is wrapped in try/catch. A quota error shows "Not enough browser storage for this image" and aborts the upload/replace — no plan is created from the modal, and an existing plan's underlay is left unchanged.
+- Writing the image key is wrapped in try/catch; a quota error shows "Not enough browser storage for this image".
+  - New plan from the modal: the image is written when the plan is created, so a quota error creates no plan.
+  - Add/Replace on an existing plan: the new image is only written on **Done**, so the stored image always matches the stored placement (a reload mid-calibration keeps the old image). A quota error on Done keeps the user in calibration with the old image intact.
 - Deleting a plan also removes its image key.
 - A plan with `underlay` but no stored image (key missing or unreadable) renders as having no image; the toolbar offers **Add floor plan image**.
 

@@ -735,6 +735,7 @@ export function Canvas({
           session={calibration.session}
           dispatch={calibration.dispatch}
           worldToScreen={worldToScreen}
+          bounds={size}
           onDone={calibration.onDone}
           onCancel={calibration.onCancel}
         />

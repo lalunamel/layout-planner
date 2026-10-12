@@ -127,7 +127,8 @@ export default function App() {
     } catch {
       return NOT_AN_IMAGE;
     }
-    if (!store.setUnderlayImage(planId, imported.dataUrl)) return STORAGE_FULL;
+    // The new image is only written on Done, so the stored image always
+    // matches the stored placement, even if the tab closes mid-calibration.
     dispatchCalibration({ type: 'START', planId, src: imported.dataUrl, natural: imported.size, draft: null, restore });
     return null;
   }
@@ -165,15 +166,20 @@ export default function App() {
 
   function handleCalibrationDone() {
     if (!calibration) return;
-    if (calibration.draft) store.setUnderlay(calibration.planId, calibration.draft);
+    const { planId, src, draft, restore } = calibration;
+    if (src !== restore.src && !store.setUnderlayImage(planId, src)) {
+      window.alert(STORAGE_FULL);
+      return;
+    }
+    if (draft) store.setUnderlay(planId, draft);
     dispatchCalibration({ type: 'END' });
   }
 
   function handleCalibrationCancel() {
     if (!calibration) return;
-    const { planId, src, restore } = calibration;
-    if (restore.src === null) store.setUnderlayImage(planId, null);
-    else if (restore.src !== src) store.setUnderlayImage(planId, restore.src);
+    // A brand-new plan's image was stored up front by createPlan; drop it.
+    // Add/Replace/Recalibrate wrote nothing yet, so there is nothing to undo.
+    if (calibration.restore.src === null) store.setUnderlayImage(calibration.planId, null);
     dispatchCalibration({ type: 'END' });
   }
 
