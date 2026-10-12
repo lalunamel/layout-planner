@@ -54,10 +54,10 @@
 - After scaling, the image is translated so the measured box's top-left corner lands on the nearest 1 ft grid intersection.
 - Dragging a new box at any time re-measures and replaces the previous result.
 
-**Step 2 — Fine-tune**
+**Step 2 — Position**
 
 - Dragging the image (outside the measure gesture) moves it freely, no snapping.
-- Corner handles resize it with aspect ratio locked, anchored at the opposite corner.
+- There is no manual resize: the measurement sets the scale, and users are assumed to measure accurately. To change the scale, use **Measure again**.
 
 How measure vs. move is distinguished: before the first Apply, a drag on the image draws a measure box. After Apply, a drag on the image moves it, and the calibration bar offers a **Measure again** button that returns to the measure gesture.
 
@@ -130,7 +130,7 @@ interface FloorPlan {
 
 ## Out of scope
 
-- Multiple images per plan, rotating the image, non-uniform scaling.
+- Multiple images per plan, rotating the image, non-uniform scaling, manual resize handles.
 - Paste/drop onto the main canvas.
 - Moving image storage to IndexedDB.
 - Automatic dimension detection (OCR) from the image.

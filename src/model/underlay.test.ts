@@ -7,7 +7,6 @@ import {
   normalizeRect,
   lengthFromFeetInches,
   pointInRect,
-  resizeFromCorner,
   underlayHeightFt,
   underlayRect,
   worldRectToImage,
@@ -133,25 +132,5 @@ describe('measureUnderlay', () => {
   });
   it('rejects when no dimension is given', () => {
     expect(measureUnderlay(base, natural, { x: 0, y: 0, width: 1, height: 1 }, { width: null, height: null })).toBeNull();
-  });
-});
-
-describe('resizeFromCorner', () => {
-  const u = { x: 0, y: 0, widthFt: 10 }; // 10 x 5
-  it('resizes from the south-east corner, anchored at north-west', () => {
-    expect(resizeFromCorner(u, natural, 'se', { x: 20, y: 6 })).toEqual({ x: 0, y: 0, widthFt: 20 });
-  });
-  it('uses whichever axis implies the larger size', () => {
-    expect(resizeFromCorner(u, natural, 'se', { x: 4, y: 10 })).toEqual({ x: 0, y: 0, widthFt: 20 });
-  });
-  it('resizes from the north-west corner, anchored at south-east', () => {
-    expect(resizeFromCorner(u, natural, 'nw', { x: -10, y: 0 })).toEqual({ x: -10, y: -5, widthFt: 20 });
-  });
-  it('resizes from the north-east and south-west corners', () => {
-    expect(resizeFromCorner(u, natural, 'ne', { x: 20, y: 0 })).toEqual({ x: 0, y: -5, widthFt: 20 });
-    expect(resizeFromCorner(u, natural, 'sw', { x: -10, y: 5 })).toEqual({ x: -10, y: 0, widthFt: 20 });
-  });
-  it('never shrinks below the minimum width', () => {
-    expect(resizeFromCorner(u, natural, 'se', { x: 0.1, y: 0.1 }).widthFt).toBe(1);
   });
 });

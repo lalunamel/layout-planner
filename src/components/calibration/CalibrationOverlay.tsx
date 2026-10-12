@@ -6,23 +6,19 @@ import {
   imageRectToWorld,
   normalizeRect,
   pointInRect,
-  resizeFromCorner,
   underlayRect,
-  type Corner,
   type Rect,
 } from '../../model/underlay';
 import { DimensionLabel } from '../DrawingAids';
 import type { CanvasMode } from '../Canvas';
 
 const MIN_MEASURE_PX = 6;
-const HANDLE_PX = 10;
 // A side shorter than this on screen (e.g. the thickness of a measured line) gets no dimension label.
 const MIN_LABEL_PX = 12;
 
 type Drag =
   | { kind: 'measure'; start: Point; current: Point }
   | { kind: 'move'; start: Point; original: Underlay }
-  | { kind: 'resize'; corner: Corner; original: Underlay }
   | null;
 
 interface CalibrationOverlayProps {
@@ -51,7 +47,7 @@ export function CalibrationOverlay({ session, dispatch, viewRect, scale, mode, t
       const world = toWorld(e.clientX, e.clientY);
       if (drag!.kind === 'measure') {
         setDrag({ ...drag!, current: world });
-      } else if (drag!.kind === 'move') {
+      } else {
         dispatch({
           type: 'SET_DRAFT',
           draft: {
@@ -60,8 +56,6 @@ export function CalibrationOverlay({ session, dispatch, viewRect, scale, mode, t
             y: drag!.original.y + world.y - drag!.start.y,
           },
         });
-      } else {
-        dispatch({ type: 'SET_DRAFT', draft: resizeFromCorner(drag!.original, natural, drag!.corner, world) });
       }
     }
     function onUp() {
@@ -96,21 +90,8 @@ export function CalibrationOverlay({ session, dispatch, viewRect, scale, mode, t
     }
   }
 
-  function startResize(e: React.MouseEvent, corner: Corner) {
-    if (e.button !== 0 || mode !== 'pointer') return;
-    e.stopPropagation();
-    setDrag({ kind: 'resize', corner, original: draft! });
-  }
-
   const liveBox = drag?.kind === 'measure' ? normalizeRect(drag.start, drag.current) : session.pendingBox;
   const measuredBox = step === 'adjust' && session.measuredBoxPx ? imageRectToWorld(draft, natural, session.measuredBoxPx) : null;
-  const handle = HANDLE_PX / scale;
-  const corners: { corner: Corner; x: number; y: number; cursor: string }[] = [
-    { corner: 'nw', x: imageRect.x, y: imageRect.y, cursor: 'nwse-resize' },
-    { corner: 'ne', x: imageRect.x + imageRect.width, y: imageRect.y, cursor: 'nesw-resize' },
-    { corner: 'sw', x: imageRect.x, y: imageRect.y + imageRect.height, cursor: 'nesw-resize' },
-    { corner: 'se', x: imageRect.x + imageRect.width, y: imageRect.y + imageRect.height, cursor: 'nwse-resize' },
-  ];
   const isMoving = drag?.kind === 'move';
 
   return (
@@ -184,23 +165,6 @@ export function CalibrationOverlay({ session, dispatch, viewRect, scale, mode, t
           )}
         </g>
       )}
-      {step === 'adjust' &&
-        corners.map(({ corner, x, y, cursor }) => (
-          <rect
-            key={corner}
-            x={x - handle / 2}
-            y={y - handle / 2}
-            width={handle}
-            height={handle}
-            rx={2 / scale}
-            fill="#fff"
-            stroke="var(--blue-600)"
-            strokeWidth={1.5}
-            vectorEffect="non-scaling-stroke"
-            style={{ pointerEvents: mode === 'pointer' ? 'all' : 'none', cursor }}
-            onMouseDown={(e) => startResize(e, corner)}
-          />
-        ))}
     </g>
   );
 }

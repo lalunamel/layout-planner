@@ -16,7 +16,7 @@ interface CalibrationHudProps {
 }
 
 export function CalibrationHud({ session, dispatch, worldToScreen, bounds, onDone, onCancel }: CalibrationHudProps) {
-  let instruction = 'Drag to move · drag corners to resize';
+  let instruction = 'Drag to line the plan up with the grid';
   if (session.step === 'measure') {
     instruction = session.pendingBox ? "Enter the box's real size" : 'Drag a box over a room whose size you know';
   }

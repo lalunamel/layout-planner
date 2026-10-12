@@ -35,10 +35,7 @@ export interface RealSize {
   height: number | null;
 }
 
-export type Corner = 'nw' | 'ne' | 'sw' | 'se';
-
 export const MAX_IMAGE_SIDE_PX = 2000;
-export const MIN_UNDERLAY_WIDTH_FT = 1;
 const FIT_FRACTION = 0.8;
 
 export function fitWithin(size: Size, maxSide: number): Size {
@@ -110,26 +107,4 @@ export function measureUnderlay(u: Underlay, natural: Size, box: Rect, real: Rea
   const anchorX = snap(box.x, MAJOR_GRID_FT);
   const anchorY = snap(box.y, MAJOR_GRID_FT);
   return { x: anchorX - px.x * k, y: anchorY - px.y * k, widthFt: natural.width * k };
-}
-
-/** Aspect-locked resize by dragging `corner` to `pointer`, keeping the
- * opposite corner fixed. The axis implying the larger size wins. */
-export function resizeFromCorner(u: Underlay, natural: Size, corner: Corner, pointer: Point): Underlay {
-  const aspect = natural.height / natural.width;
-  const w = u.widthFt;
-  const h = w * aspect;
-  const west = corner === 'nw' || corner === 'sw';
-  const north = corner === 'nw' || corner === 'ne';
-  const anchorX = west ? u.x + w : u.x;
-  const anchorY = north ? u.y + h : u.y;
-  const widthFt = Math.max(
-    Math.abs(pointer.x - anchorX),
-    Math.abs(pointer.y - anchorY) / aspect,
-    MIN_UNDERLAY_WIDTH_FT,
-  );
-  return {
-    x: west ? anchorX - widthFt : anchorX,
-    y: north ? anchorY - widthFt * aspect : anchorY,
-    widthFt,
-  };
 }
