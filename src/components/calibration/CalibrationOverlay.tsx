@@ -16,6 +16,8 @@ import type { CanvasMode } from '../Canvas';
 
 const MIN_MEASURE_PX = 6;
 const HANDLE_PX = 10;
+// A side shorter than this on screen (e.g. the thickness of a measured line) gets no dimension label.
+const MIN_LABEL_PX = 12;
 
 type Drag =
   | { kind: 'measure'; start: Point; current: Point }
@@ -164,7 +166,7 @@ export function CalibrationOverlay({ session, dispatch, viewRect, scale, mode, t
             strokeDasharray="6 4"
             vectorEffect="non-scaling-stroke"
           />
-          {measuredBox.width > 0 && (
+          {measuredBox.width * scale >= MIN_LABEL_PX && (
             <DimensionLabel
               a={{ x: measuredBox.x, y: measuredBox.y }}
               b={{ x: measuredBox.x + measuredBox.width, y: measuredBox.y }}
@@ -172,7 +174,7 @@ export function CalibrationOverlay({ session, dispatch, viewRect, scale, mode, t
               color="var(--blue-600)"
             />
           )}
-          {measuredBox.height > 0 && (
+          {measuredBox.height * scale >= MIN_LABEL_PX && (
             <DimensionLabel
               a={{ x: measuredBox.x, y: measuredBox.y }}
               b={{ x: measuredBox.x, y: measuredBox.y + measuredBox.height }}

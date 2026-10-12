@@ -19,6 +19,7 @@ import { clampScale, DEFAULT_SCALE, MINOR_GRID_VISIBLE_SCALE, type View } from '
 import { loadView, saveView } from '../store/storage';
 import { DimensionLabel, GhostPoint, RubberBandPreview } from './DrawingAids';
 import { UnderlayImage } from './UnderlayImage';
+import { imageRectToWorld } from '../model/underlay';
 import type { CalibrationAction, CalibrationSession } from '../model/calibration';
 import { CalibrationOverlay } from './calibration/CalibrationOverlay';
 import { CalibrationHud } from './calibration/CalibrationHud';
@@ -170,6 +171,26 @@ export function Canvas({
     setSelectedFurnitureId(null);
     setSelectedWallId(null);
   }, [calibrating]);
+
+  // Applying a measurement rescales the image in world feet, often by a lot.
+  // Rescale the view to match, so the measured box stays exactly where the
+  // user drew it on screen and the grid changes scale around it instead.
+  const session = calibration?.session ?? null;
+  const prevSessionRef = useRef<CalibrationSession | null>(null);
+  useEffect(() => {
+    const prev = prevSessionRef.current;
+    prevSessionRef.current = session;
+    const before = prev?.pendingBox;
+    if (!before || !session?.draft || !session.measuredBoxPx || session.measuredBoxPx === prev.measuredBoxPx) return;
+    const after = imageRectToWorld(session.draft, session.natural, session.measuredBoxPx);
+    setView((v) => {
+      const ratio = after.width > 0 ? before.width / after.width : before.height / after.height;
+      const scale = clampScale(v.scale * ratio);
+      const left = (before.x - v.x) * v.scale;
+      const top = (before.y - v.y) * v.scale;
+      return { x: after.x - left / scale, y: after.y - top / scale, scale };
+    });
+  }, [session]);
 
   function snapResolution(): number {
     return view.scale >= MINOR_GRID_VISIBLE_SCALE ? MINOR_GRID_FT : MAJOR_GRID_FT;
