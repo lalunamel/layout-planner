@@ -19,6 +19,7 @@ import { clampScale, DEFAULT_SCALE, MINOR_GRID_VISIBLE_SCALE, type View } from '
 import { loadView, saveView } from '../store/storage';
 import { DimensionLabel, GhostPoint, RubberBandPreview } from './DrawingAids';
 import { UnderlayImage } from './UnderlayImage';
+import { ScaleBar } from './ScaleBar';
 import { imageRectToWorld } from '../model/underlay';
 import type { CalibrationAction, CalibrationSession } from '../model/calibration';
 import { CalibrationOverlay } from './calibration/CalibrationOverlay';
@@ -730,6 +731,7 @@ export function Canvas({
           )}
         </svg>
       )}
+      <ScaleBar scale={view.scale} />
       {calibration && (
         <CalibrationHud
           session={calibration.session}
