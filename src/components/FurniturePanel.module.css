@@ -87,13 +87,6 @@
   font-weight: 500;
 }
 
-/* The card left behind while its ghost is dragged. */
-.dragging {
-  opacity: 0.5;
-  border: 1.5px dashed var(--blue-400);
-  box-shadow: none;
-}
-
 .dropBefore::before,
 .dropAfter::after {
   content: '';
@@ -163,9 +156,9 @@
   min-height: 38px;
   padding: 8px 12px;
   background: #fff;
-  border: 1px solid var(--blue-400);
+  border: 1.5px dashed var(--blue-500);
   border-radius: 10px;
-  box-shadow: var(--shadow-hover);
+  opacity: 0.6;
   pointer-events: none;
   z-index: 50;
 }

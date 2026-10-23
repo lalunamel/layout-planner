@@ -90,7 +90,6 @@ export function FurniturePanel({
             key={template.id}
             template={template}
             placed={placedTemplateIds.has(template.id)}
-            dragging={template.id === draggingId}
             dropMarker={
               effectiveSlot === i ? 'before' : effectiveSlot === library.length && i === library.length - 1 ? 'after' : null
             }

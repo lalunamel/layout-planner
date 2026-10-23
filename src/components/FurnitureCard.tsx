@@ -5,7 +5,6 @@ interface FurnitureCardProps {
   template: FurnitureTemplate;
   /** Already placed on the plan being viewed — shown muted. */
   placed: boolean;
-  dragging: boolean;
   dropMarker: 'before' | 'after' | null;
   onDelete: () => void;
   onStartDrag: (e: React.MouseEvent<HTMLDivElement>) => void;
@@ -15,7 +14,6 @@ interface FurnitureCardProps {
 export function FurnitureCard({
   template,
   placed,
-  dragging,
   dropMarker,
   onDelete,
   onStartDrag,
@@ -23,7 +21,6 @@ export function FurnitureCard({
 }: FurnitureCardProps) {
   const classes = [styles.card];
   if (placed) classes.push(styles.placed);
-  if (dragging) classes.push(styles.dragging);
   if (dropMarker === 'before') classes.push(styles.dropBefore);
   if (dropMarker === 'after') classes.push(styles.dropAfter);
 
