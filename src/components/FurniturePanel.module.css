@@ -27,16 +27,22 @@
   padding: 4px 14px 14px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .newCard {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   background: none;
   border: 1.5px dashed var(--blue-200);
-  border-radius: 14px;
-  padding: 10px;
+  border-radius: 10px;
+  padding: 9px 12px;
   cursor: pointer;
   font: inherit;
+  font-size: 13px;
+  font-weight: 600;
   color: var(--blue-600);
   transition:
     border-color 0.15s ease,
@@ -48,28 +54,17 @@
   border-color: var(--blue-500);
 }
 
-.newCardIcon {
-  height: 56px;
-  border-radius: 9px;
+.card {
   display: flex;
   align-items: center;
-  justify-content: center;
-  margin-bottom: 8px;
-}
-
-.newCardLabel {
-  font-size: 13px;
-  font-weight: 600;
-  text-align: center;
-}
-
-.card {
+  min-height: 38px;
+  padding: 8px 10px 8px 12px;
   background: #fff;
   border: 1px solid rgba(31, 41, 55, 0.06);
-  border-radius: 14px;
-  padding: 10px;
+  border-radius: 10px;
   cursor: grab;
   position: relative;
+  user-select: none;
 }
 
 .card:hover {
@@ -81,26 +76,56 @@
   cursor: grabbing;
 }
 
-.swatch {
-  height: 56px;
-  border-radius: 9px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 8px;
+/* On the plan being viewed already: still usable (place another copy), just muted. */
+.placed {
+  background: transparent;
+  border-color: var(--paper-grid-major);
+}
+
+.placed .name {
+  color: var(--ink-soft);
+  font-weight: 500;
+}
+
+.dragging {
+  opacity: 0.45;
+}
+
+.dropBefore::before,
+.dropAfter::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--blue-500);
+  pointer-events: none;
+}
+
+/* Centered in the 8px gap between cards. */
+.dropBefore::before {
+  top: -6.5px;
+}
+
+.dropAfter::after {
+  bottom: -6.5px;
 }
 
 .name {
+  flex: 1;
+  min-width: 0;
   font-size: 13px;
   font-weight: 600;
   color: var(--ink);
-  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .deleteButton {
-  position: absolute;
-  top: 6px;
-  right: 6px;
+  flex: none;
+  margin-left: 6px;
   width: 24px;
   height: 24px;
   padding: 0;

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { FloorPlan, FurnitureTemplate, Underlay } from '../model/types';
 import { makeId } from '../model/geometry';
+import { moveToSlot } from '../model/list';
 import * as storage from './storage';
 import { usePlanHistory } from './usePlanHistory';
 
@@ -132,6 +133,10 @@ export function useAppStore() {
     setLibrary((prev) => [...prev, template]);
   }, []);
 
+  const moveTemplate = useCallback((id: string, slot: number) => {
+    setLibrary((prev) => moveToSlot(prev, prev.findIndex((t) => t.id === id), slot));
+  }, []);
+
   const deleteTemplate = useCallback((id: string) => {
     setLibrary((prev) => prev.filter((t) => t.id !== id));
   }, []);
@@ -156,5 +161,6 @@ export function useAppStore() {
     setUnderlay,
     addTemplate,
     deleteTemplate,
+    moveTemplate,
   };
 }

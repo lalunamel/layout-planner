@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { importImageFile, loadImageSize, NOT_AN_IMAGE, UNREADABLE_FILE_TITLE, type ImportedImage } from './model/imageImport';
 import type { FurnitureTemplate, Point, Underlay } from './model/types';
 import { imageRectToWorld, underlayFromScale, underlayRect, type Rect, type Size } from './model/underlay';
@@ -40,6 +40,10 @@ export default function App() {
   // With no plans at all, the new-plan modal is the empty state.
   const noPlans = store.plans.length === 0;
   const hasImage = !!(store.underlayImage && store.activePlanMeta?.underlay);
+  const placedTemplateIds = useMemo(
+    () => new Set(store.planState.placed.map((p) => p.templateId)),
+    [store.planState.placed],
+  );
 
   useEffect(() => {
     if (editingName) {
@@ -302,6 +306,9 @@ export default function App() {
         />
         <FurniturePanel
           library={store.library}
+          placedTemplateIds={placedTemplateIds}
+          draggingId={draggingTemplate?.id ?? null}
+          onReorder={store.moveTemplate}
           onNew={() => setFurnitureEditorOpen(true)}
           onDelete={(template) =>
             setConfirmRequest({
