@@ -87,8 +87,11 @@
   font-weight: 500;
 }
 
+/* The card left behind while its ghost is dragged. */
 .dragging {
-  opacity: 0.45;
+  opacity: 0.5;
+  border: 1.5px dashed var(--blue-400);
+  box-shadow: none;
 }
 
 .dropBefore::before,
@@ -101,8 +104,6 @@
   border-radius: 2px;
   background: var(--blue-500);
   pointer-events: none;
-  /* Above the drag ghost, which often sits right over the drop spot. */
-  z-index: 51;
 }
 
 /* Centered in the 8px gap between cards. */
@@ -165,7 +166,6 @@
   border: 1px solid var(--blue-400);
   border-radius: 10px;
   box-shadow: var(--shadow-hover);
-  transform: rotate(-1.5deg);
   pointer-events: none;
   z-index: 50;
 }
