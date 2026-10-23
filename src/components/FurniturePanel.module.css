@@ -96,7 +96,7 @@
   right: 4px;
   height: 3px;
   border-radius: 2px;
-  background: var(--blue-500);
+  background: var(--blue-400);
   pointer-events: none;
 }
 
