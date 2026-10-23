@@ -101,6 +101,8 @@
   border-radius: 2px;
   background: var(--blue-500);
   pointer-events: none;
+  /* Above the drag ghost, which often sits right over the drop spot. */
+  z-index: 51;
 }
 
 /* Centered in the 8px gap between cards. */
@@ -150,4 +152,20 @@
   background: #fdecea;
   border-color: #f5c6c0;
   color: var(--danger);
+}
+
+/* Follows the cursor while a card is dragged within the list. */
+.ghost {
+  position: fixed;
+  display: flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 8px 12px;
+  background: #fff;
+  border: 1px solid var(--blue-400);
+  border-radius: 10px;
+  box-shadow: var(--shadow-hover);
+  transform: rotate(-1.5deg);
+  pointer-events: none;
+  z-index: 50;
 }

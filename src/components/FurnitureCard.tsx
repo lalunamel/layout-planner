@@ -8,7 +8,7 @@ interface FurnitureCardProps {
   dragging: boolean;
   dropMarker: 'before' | 'after' | null;
   onDelete: () => void;
-  onStartDrag: (e: React.MouseEvent) => void;
+  onStartDrag: (e: React.MouseEvent<HTMLDivElement>) => void;
   onMouseMove: (e: React.MouseEvent<HTMLDivElement>) => void;
 }
 
