@@ -73,7 +73,7 @@ export function FurniturePanel({
         <h3>Furniture</h3>
       </div>
       <div
-        className={styles.list}
+        className={draggingId ? `${styles.list} ${styles.listDragging}` : styles.list}
         onMouseLeave={() => setDropSlot(null)}
         onMouseUp={() => {
           if (draggingId && effectiveSlot !== null) onReorder(draggingId, effectiveSlot);

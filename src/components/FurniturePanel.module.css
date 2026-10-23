@@ -49,7 +49,8 @@
     background 0.15s ease;
 }
 
-.newCard:hover {
+/* Hover effects are off while a card is being dragged over the list. */
+.list:not(.listDragging) .newCard:hover {
   background: #fff;
   border-color: var(--blue-500);
 }
@@ -67,7 +68,7 @@
   user-select: none;
 }
 
-.card:hover {
+.list:not(.listDragging) .card:hover {
   border-color: var(--blue-200);
   box-shadow: var(--shadow-card-hover);
 }
@@ -137,7 +138,7 @@
   transition: opacity 0.15s ease;
 }
 
-.card:hover .deleteButton,
+.list:not(.listDragging) .card:hover .deleteButton,
 .deleteButton:focus-visible {
   opacity: 1;
 }
