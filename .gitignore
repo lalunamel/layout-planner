@@ -3,3 +3,14 @@ dist/
 .DS_Store
 .superpowers/
 .claude/worktrees/
+
+# Personal data: never commit floor plan images or exports
+*.png
+*.jpg
+*.jpeg
+*.heic
+*.webp
+*.pdf
+!public/favicon.svg
+*.local.json
+.env*
